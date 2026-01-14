@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>标记点示例</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    p {
+      color: #666;
+      margin-bottom: 20px;
+    }
+    .map-container {
+      width: 100%;
+      height: 500px;
+      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.2rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    .marker {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background: #e53e3e;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    .marker::after {
+      content: '';
+      width: 14px;
+      height: 14px;
+      background: white;
+      border-radius: 50%;
+    }
+    .marker-1 { top: 30%; left: 40%; }
+    .marker-2 { top: 50%; left: 60%; }
+    .marker-3 { top: 40%; left: 25%; }
+    .info {
+      margin-top: 20px;
+      padding: 15px;
+      background: white;
+      border-radius: 8px;
+      border-left: 4px solid #48bb78;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📍 标记点示例</h1>
+    <p>展示如何在地图上添加各种标记点和覆盖物</p>
+    
+    <div class="map-container">
+      <div class="marker marker-1">1</div>
+      <div class="marker marker-2">2</div>
+      <div class="marker marker-3">3</div>
+      <div>
+        <p>地图容器</p>
+        <p style="font-size: 0.9rem; margin-top: 10px;">标记点示例</p>
+      </div>
+    </div>
+
+    <div class="info">
+      <h3>💡 功能说明</h3>
+      <p style="margin-top: 10px;">1. 添加单个标记点</p>
+      <p>2. 添加多个标记点</p>
+      <p>3. 自定义标记点样式</p>
+      <p>4. 标记点点击事件</p>
+      <p>5. 信息窗口</p>
+    </div>
+  </div>
+
+  <script>
+    console.log('标记点示例已加载')
+  </script>
+</body>
+</html>

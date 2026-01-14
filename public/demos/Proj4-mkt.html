@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html>
+<meta charset='UTF-8' />
+<meta name='viewport' content='width=device-width, initial-scale=1' />
+<title>瓦片图层与地理投影 - Proj4js自定义投影底图-maptalks-102012-加入tif影像-投影切换 整理</title>
+<style type='text/css'>
+    html,
+    body {
+        margin: 0px;
+        height: 100%;
+        width: 100%;
+    }
+
+    .container {
+        width: 100%;
+        height: 100%;
+    }
+    
+    .projection-switch {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        padding: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .projection-switch button {
+        margin: 5px;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        background: #f8f9fa;
+        cursor: pointer;
+        font-size: 12px;
+    }
+    
+    .projection-switch button:hover {
+        background: #e9ecef;
+    }
+    
+    .projection-switch button.active {
+        background: #007bff;
+        color: white;
+        border-color: #0056b3;
+    }
+    
+    .projection-info {
+        font-size: 11px;
+        color: #666;
+        margin-top: 5px;
+        text-align: center;
+    }
+</style>
+<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/maptalks/dist/maptalks.css' />
+<script type='text/javascript' src='https://cdn.jsdelivr.net/npm/maptalks/dist/maptalks.min.js'></script>
+
+<body>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.6.2/proj4.min.js"></script>
+    <div id="map" class="container"></div>
+    
+    <!-- 投影切换控制面板 -->
+    <div class="projection-switch">
+        <div>
+            <button id="epsg4326" class="active">EPSG:4326</button>
+            <button id="epsg102012">EPSG:102012</button>
+        </div>
+        <div class="projection-info" id="projection-info">当前投影: EPSG:4326</div>
+    </div>
+
+    <script>
+        // 注册投影到proj4
+        proj4.defs("ESRI:102012", "+proj=lcc +lat_0=0 +lon_0=105 +lat_1=30 +lat_2=62 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs");
+        // 兼容 GeoServer 使用的 EPSG 代码
+        proj4.defs("EPSG:102012", "+proj=lcc +lat_0=0 +lon_0=105 +lat_1=30 +lat_2=62 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs");
+
+        // 创建投影转换器
+        const proj = proj4("EPSG:4326", "ESRI:102012");
+
+        // 定义自定义投影对象
+        const customProjection = {
+            code: "EPSG:102012",
+
+            project: function (c) {
+                let [lon, lat] = c.toArray();
+                // 归一化与裁剪，避免投影奇异导致 NaN
+                if (!Number.isFinite(lon)) lon = 0;
+                if (!Number.isFinite(lat)) lat = 0;
+                // 归一化经度到 [-180, 180]
+                lon = ((lon + 180) % 360 + 360) % 360 - 180;
+                // 裁剪纬度到有效范围内（远离极点）
+                const MIN_LAT = -89.9999;
+                const MAX_LAT = 89.9999;
+                lat = Math.max(MIN_LAT, Math.min(MAX_LAT, lat));
+
+                let pc = proj.forward([lon, lat]);
+                if (!Number.isFinite(pc[0]) || !Number.isFinite(pc[1])) {
+                    // 再次轻微回退以避免边界奇异
+                    const epsilon = 1e-6;
+                    const safeLat = Math.max(MIN_LAT + epsilon, Math.min(MAX_LAT - epsilon, lat));
+                    pc = proj.forward([lon, safeLat]);
+                }
+                if (!Number.isFinite(pc[0]) || !Number.isFinite(pc[1])) {
+                    // 最后兜底：返回投影中心，避免 NaN 传播
+                    pc = proj.forward([105, 30]);
+                }
+                return new maptalks.Coordinate(pc);
+            },
+
+            unproject: function (pc) {
+                let [x, y] = pc.toArray();
+                if (!Number.isFinite(x) || !Number.isFinite(y)) {
+                    // 兜底：返回地图中心的经纬度
+                    return new maptalks.Coordinate([105, 30]);
+                }
+                let c = proj.inverse([x, y]);
+                if (!Number.isFinite(c[0]) || !Number.isFinite(c[1])) {
+                    // 轻微扰动后重试
+                    const epsilon = 1e-3;
+                    c = proj.inverse([x + epsilon, y + epsilon]);
+                }
+                if (!Number.isFinite(c[0]) || !Number.isFinite(c[1])) {
+                    c = [105, 30];
+                }
+                return new maptalks.Coordinate(c);
+            },
+
+            measure: "identity",
+        };
+
+        // 投影配置
+        const projectionConfigs = {
+            'EPSG:4326': {
+                projection: 'EPSG:4326',
+                resolutions: [
+                    0.703125, 0.3515625, 0.17578125, 0.087890625, 0.0439453125, 0.02197265625,
+                    0.010986328125, 0.0054931640625, 0.00274658203125, 0.001373291015625,
+                    0.0006866455078125, 0.00034332275390625, 0.000171661376953125, 0.0000858306884765625,
+                    0.00004291534423828125, 0.000021457672119140625, 0.000010728836059570312,
+                    0.000005364418029785156, 0.000002682209014892578, 0.000001341104507446289
+                ],
+                fullExtent: {
+                    top: 90,
+                    left: -180,
+                    bottom: -90,
+                    right: 180,
+                },
+                center: [105, 30],
+                zoom: 3
+            },
+            'EPSG:102012': {
+                projection: customProjection,
+                resolutions: [
+                    100000, 50000, 25000, 12500, 6250, 3125, 1562.5, 781.25, 390.625, 195.3125,
+                    97.65625, 48.828125, 24.4140625, 12.20703125, 6.103515625, 3.0517578125,
+                    1.52587890625, 0.762939453125, 0.3814697265625, 0.19073486328125
+                ],
+                fullExtent: {
+                    top: 5000000,
+                    left: -8000000,
+                    bottom: -5000000,
+                    right: 8000000,
+                },
+                center: [105, 30],
+                zoom: 3
+            }
+        };
+
+        // 当前投影状态
+        let currentProjection = 'EPSG:4326';
+        let map, gridLayer, markerLayer, cityLayer, labelLayer, wmsImageLayer;
+
+        // 测试投影转换
+        console.log("测试投影转换:");
+        const testCoord = [105, 30];
+        const projected = customProjection.project(new maptalks.Coordinate(testCoord));
+        const unprojected = customProjection.unproject(projected);
+        console.log("原始坐标:", testCoord);
+        console.log("投影后坐标:", projected.toArray());
+        console.log("反投影后坐标:", unprojected.toArray());
+
+        // 创建地图
+        function createMap() {
+            const config = projectionConfigs[currentProjection];
+            
+            map = new maptalks.Map("map", {
+                center: config.center,
+                zoom: config.zoom,
+                spatialReference: {
+                    projection: config.projection,
+                    resolutions: config.resolutions,
+                    fullExtent: config.fullExtent,
+                },
+                baseLayer: new maptalks.TileLayer("base", {
+                    spatialReference: {
+                        projection: "EPSG:4326",
+                    },
+                    urlTemplate: "http://localhost:8080/geoserver/gwc/service/tms/1.0.0/ne%3Achina@EPSG%3A4326@png/{z}/{x}/{y}.png",
+                    renderer: 'canvas'
+                }),
+            });
+
+            // 添加网格线来显示投影效果
+            gridLayer = new maptalks.VectorLayer('grid', [], {
+                renderer: 'canvas'
+            });
+            map.addLayer(gridLayer);
+
+            // 添加标记点
+            const marker = new maptalks.Marker([105, 30], {
+                symbol: {
+                    markerType: 'ellipse',
+                    markerFill: 'red',
+                    markerFillOpacity: 0.8,
+                    markerLineWidth: 2,
+                    markerLineColor: 'white',
+                    markerWidth: 20,
+                    markerHeight: 20
+                }
+            });
+
+            markerLayer = new maptalks.VectorLayer('markers', [marker], { renderer: 'canvas' });
+            map.addLayer(markerLayer);
+
+            // 城市数据
+            const cities = [
+                { name: '北京', coord: [116.4074, 39.9042] },
+                { name: '上海', coord: [121.4737, 31.2304] },
+                { name: '广州', coord: [113.2644, 23.1291] },
+                { name: '东京', coord: [139.6917, 35.6895] },
+                { name: '首尔', coord: [126.9780, 37.5665] },
+                { name: '莫斯科', coord: [37.6173, 55.7558] },
+                { name: '新德里', coord: [77.2090, 28.6139] }
+            ];
+
+            const cityMarkers = cities.map(city => new maptalks.Marker(city.coord, {
+                symbol: {
+                    markerType: 'ellipse',
+                    markerFill: 'blue',
+                    markerFillOpacity: 0.6,
+                    markerLineWidth: 1,
+                    markerLineColor: 'white',
+                    markerWidth: 8,
+                    markerHeight: 8
+                }
+            }));
+
+            cityLayer = new maptalks.VectorLayer('cities', cityMarkers, { renderer: 'canvas' });
+            map.addLayer(cityLayer);
+
+            // 城市名称文字标注
+            const cityLabels = cities.map(city => new maptalks.Label(
+                city.name,
+                city.coord,
+                {
+                    symbol: {
+                        textFaceName: 'sans-serif',
+                        textFill: '#111',
+                        textHaloFill: '#ffffff',
+                        textHaloRadius: 2,
+                        textSize: 12,
+                        textDy: -14,
+                        textAllowOverlap: true
+                    }
+                }
+            ));
+
+            // 地图中心点文字标注
+            const centerLabel = new maptalks.Label(
+                '中心',
+                [105, 30],
+                {
+                    symbol: {
+                        textFaceName: 'sans-serif',
+                        textFill: '#c00',
+                        textHaloFill: '#ffffff',
+                        textHaloRadius: 2,
+                        textSize: 12,
+                        textDy: -16,
+                        textAllowOverlap: true
+                    }
+                }
+            );
+
+            labelLayer = new maptalks.VectorLayer('labels', [...cityLabels, centerLabel], { renderer: 'canvas' });
+
+            // 叠加 GeoServer WMS 图层
+            wmsImageLayer = new maptalks.ImageLayer('wms_overlay', [], { renderer: 'canvas' });
+            map.addLayer(wmsImageLayer);
+            map.addLayer(labelLayer);
+
+            // 绘制网格
+            drawGrid();
+
+            // 添加手动刷新WMS图层的按钮
+            const refreshButton = new maptalks.ui.UIMarker(
+                new maptalks.Coordinate([105, 55]),
+                {
+                    'draggable': false,
+                    'single': true,
+                    'content': '<div style="background: white; border: 1px solid #ccc; padding: 5px; cursor: pointer; border-radius: 3px;">刷新影像</div>'
+                }
+            ).addTo(map);
+
+            refreshButton.on('click', function () {
+                console.log('手动刷新WMS影像');
+                updateWMSOverlay();
+            });
+
+            map.on('moveend zoomend resize', updateWMSOverlay);
+            updateWMSOverlay();
+
+            console.log("地图投影信息:", map.getSpatialReference());
+            console.log("地图中心点:", map.getCenter());
+        }
+
+        // 绘制经纬度网格
+        function drawGrid() {
+            const features = [];
+            if (currentProjection === 'EPSG:102012') {
+                // 投影适用范围（WKT 提供的 BBOX）：LAT [-10, 85], LON [25E, 175W]
+                const MIN_LAT = -85;
+                const MAX_LAT = 85;
+                const MIN_LON = 0;   // 25E
+                const MAX_LON = 359;  // 175W 近似到 180E，避免跨日期线复杂情况
+                const isFinitePair = (p) => Number.isFinite(p[0]) && Number.isFinite(p[1]);
+                // 绘制经线 (每隔10度)
+                for (let lon = MIN_LON; lon <= MAX_LON; lon += 10) {
+                    const line = new maptalks.LineString([], {
+                        symbol: {
+                            lineColor: '#666',
+                            lineWidth: 1,
+                            lineOpacity: 0.5
+                        }
+                    });
+                    const points = [];
+                    for (let lat = MIN_LAT; lat <= MAX_LAT; lat += 1) {
+                        const p = proj.forward([lon, lat]);
+                        if (isFinitePair(p)) {
+                            points.push([lon, lat]);
+                        }
+                    }
+                    if (points.length >= 2) {
+                        line.setCoordinates(points);
+                        features.push(line);
+                    }
+                }
+                // 绘制纬线 (每隔10度)
+                for (let lat = MIN_LAT; lat <= MAX_LAT; lat += 10) {
+                    const line = new maptalks.LineString([], {
+                        symbol: {
+                            lineColor: '#666',
+                            lineWidth: 1,
+                            lineOpacity: 0.5
+                        }
+                    });
+                    const points = [];
+                    for (let lon = MIN_LON; lon <= MAX_LON; lon += 1) {
+                        const p = proj.forward([lon, lat]);
+                        if (isFinitePair(p)) {
+                            points.push([lon, lat]);
+                        }
+                    }
+                    if (points.length >= 2) {
+                        line.setCoordinates(points);
+                        features.push(line);
+                    }
+                }
+            } 
+            else {
+                // EPSG:4326 投影的网格线
+                const MIN_LAT = -90;
+                const MAX_LAT = 90;
+                const MIN_LON = -180;
+                const MAX_LON = 180;
+
+                // 绘制经线 (每隔30度)
+                for (let lon = MIN_LON; lon <= MAX_LON; lon += 30) {
+                    const line = new maptalks.LineString([
+                        [lon, MIN_LAT],
+                        [lon, MAX_LAT]
+                    ], {
+                        symbol: {
+                            lineColor: '#666',
+                            lineWidth: 1,
+                            lineOpacity: 0.5
+                        }
+                    });
+                    features.push(line);
+                }
+                // 绘制纬线 (每隔30度)
+                for (let lat = MIN_LAT; lat <= MAX_LAT; lat += 30) {
+                    const line = new maptalks.LineString([
+                        [MIN_LON, lat],
+                        [MAX_LON, lat]
+                    ], {
+                        symbol: {
+                            lineColor: '#666',
+                            lineWidth: 1,
+                            lineOpacity: 0.5
+                        }
+                    });
+                    features.push(line);
+                }
+            }
+            gridLayer.addGeometry(features);
+        }
+        // 动态影像覆盖层：随地图视图变化更新 WMS 请求
+        function updateWMSOverlay() {
+            const size = map.getSize();
+            const extent = map.getExtent(); // 地图坐标系下的范围
+
+            const wmsBaseUrl = 'http://localhost:8080/geoserver/ne/wms';
+            const wmsParams = {
+                service: 'WMS',
+                version: '1.1.0',
+                request: 'GetMap',
+                layers: 'ne:china',
+                styles: '',
+                format: 'image/png',
+                srs: currentProjection,
+                transparent: 'true'
+            };
+            function buildQuery(params) {
+                return Object.keys(params)
+                    .map(k => `${k}=${encodeURIComponent(params[k])}`)
+                    .join('&');
+            }
+            let bbox;
+            if (currentProjection === 'EPSG:102012') {
+                // 投影四个角点，稳妥组合 BBOX
+                const cornersLonLat = [
+                    [extent.xmin, extent.ymin],
+                    [extent.xmin, extent.ymax],
+                    [extent.xmax, extent.ymin],
+                    [extent.xmax, extent.ymax]
+                ];
+                const cornersXY = cornersLonLat.map(c => customProjection.project(new maptalks.Coordinate(c)).toArray());
+                const xs = cornersXY.map(p => p[0]);
+                const ys = cornersXY.map(p => p[1]);
+                bbox = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)].join(',');
+            } else {
+                // EPSG:4326 直接使用经纬度范围
+                bbox = [extent.xmin, extent.ymin, extent.xmax, extent.ymax].join(',');
+            }
+
+            const url = `${wmsBaseUrl}?${buildQuery({
+                ...wmsParams,
+                width: Math.round(size.width),
+                height: Math.round(size.height),
+                bbox
+            })}`;
+
+            console.log('WMS请求URL:', url);
+
+            // 将返回影像贴到当前地图视图范围上
+            wmsImageLayer.setImages([
+                {
+                    url,
+                    extent: [extent.xmin, extent.ymin, extent.xmax, extent.ymax]
+                }
+            ]);
+        }
+        // 投影切换功能
+        function switchProjection(newProjection) {
+            if (newProjection === currentProjection) return;
+            
+            console.log(`切换投影从 ${currentProjection} 到 ${newProjection}`);
+            
+            // 保存当前视图状态
+            const center = map.getCenter();
+            const zoom = map.getZoom();
+            // 销毁当前地图
+            if (map) {
+                map.remove();
+            }
+            // 更新当前投影
+            currentProjection = newProjection;
+            // 重新创建地图
+            createMap();
+            // 恢复视图状态
+            map.setCenter(center);
+            map.setZoom(zoom);
+            // 更新UI状态
+            updateProjectionUI();
+            // 重新加载WMS
+            updateWMSOverlay();
+        }
+
+        // 更新投影切换UI
+        function updateProjectionUI() {
+            document.getElementById('epsg4326').classList.toggle('active', currentProjection === 'EPSG:4326');
+            document.getElementById('epsg102012').classList.toggle('active', currentProjection === 'EPSG:102012');
+            document.getElementById('projection-info').textContent = `当前投影: ${currentProjection}`;
+        }
+        // 绑定投影切换事件
+        document.getElementById('epsg4326').addEventListener('click', () => switchProjection('EPSG:4326'));
+        document.getElementById('epsg102012').addEventListener('click', () => switchProjection('EPSG:102012'));
+
+        // 初始化地图
+        createMap();
+    </script>
+</body>
+
+</html>

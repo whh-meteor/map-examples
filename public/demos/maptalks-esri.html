@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Map - Display a map</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dat.gui@0.7.6/build/dat.gui.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maptalks/dist/maptalks.css">
+<style type="text/css">
+  html, body {
+    margin: 0;
+    height: 100%;
+    width: 100%
+  }
+  .container {
+    width: 100%;
+    height: 100%
+  }
+</style>
+<body>
+
+<div id="map" class="container"></div>
+<script src="https://cdn.jsdelivr.net/npm/maptalks/dist/maptalks.js"></script>
+<script src="https://cdn.jsdelivr.net/npm//axios/dist/axios.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dat.gui@0.7.6/build/dat.gui.js"></script>
+<script src="//cdn.jsdelivr.net/npm/chroma-js@2.1.0/chroma.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@sakitam-gis/maptalks-wind@1.x/dist/maptalks-wind.js"></script>
+<script>
+  const map = new maptalks.Map('map', {
+    zoom: 2,
+    center: [34.371, 131.287].reverse(),
+    baseLayer: new maptalks.TileLayer('base', {
+     urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      subdomains: ['a', 'b', 'c', 'd'],
+    })
+  });
+</script>
+</body>
+</html>
