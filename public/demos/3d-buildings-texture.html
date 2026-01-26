@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<meta charset='UTF-8' />
+<meta name='viewport' content='width=device-width, initial-scale=1' />
+<title>三维白模样式 - 顶面和侧面设置不同的纹理</title>
+<style type='text/css'>
+    html,
+    body {
+        width: 100%;
+        height: 100%;
+        margin: 0px;
+    }
+
+    .container {
+        width: 100%;
+        height: 100%;
+    }
+</style>
+<link rel='stylesheet' href='https://maptalks.com/api/maptalks-gl.css' />
+<script type='text/javascript' src='https://maptalks.com/api/maptalks-gl.js'></script>
+
+<body>
+    <div id="map" class="container"></div>
+
+    <script>
+        // 初始化地图，设置中心点、缩放级别、方位角和俯仰角
+        const map = new maptalks.Map("map", {
+            center: [119.995518, 35.875138], // 地图中心坐标 [经度, 纬度]
+            zoom: 16, // 缩放级别
+            bearing: -18, // 方位角（旋转角度）
+            pitch: 60, // 俯仰角（倾斜角度）
+            lights: { // 灯光配置
+                directional: { // 平行光
+                    direction: [-1, 0, -1], // 光照方向
+                    color: [1, 1, 1] // 光照颜色（白色）
+                },
+              
+            },
+            baseLayer: new maptalks.TileLayer("base", { // 底图层配置
+                urlTemplate:  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                subdomains: ["a", "b", "c", "d"],
+            })
+        });
+
+        // 创建矢量瓦片图层，用于加载建筑数据
+        const vt = new maptalks.VectorTileLayer("vt", {
+            urlTemplate: "http://localhost:5000/tiles/test.mbtiles/{z}/{x}/{y}.mvt" // 矢量瓦片服务地址
+        });
+
+        // 建筑样式配置数组
+        const buildingStlyes = [{
+            // 第一个样式：建筑顶面样式
+            filter: ["all", 
+                ["==", "$type", "Polygon"] // 过滤多边形类型
+            ],
+            renderPlugin: {
+                type: "lit", // 使用光照渲染插件
+                dataConfig: {
+                    type: "3d-extrusion", // 3D挤出类型
+                    altitudeProperty: "height", // 高度属性名
+             
+                    altitudeScale: 1, // 高度缩放比例
+                    defaultAltitude: 10, // 默认高度
+                    topThickness: 2, // 顶面厚度
+                    top: true, // 渲染顶面
+                    side: false // 不渲染侧面
+                },
+                sceneConfig: {
+                    animation: null, // 无动画
+                    animationDuration: 800 // 动画持续时间
+                }
+            },
+            symbol: {
+                polygonOpacity: 0.6, // 多边形透明度
+                material: { // 材质配置
+                    baseColorTexture: "/texture/webp8.jpg", // 基础颜色纹理
+                    baseColorFactor: [0.3137254901960784, 0.30980392156862746, 0.3137254901960784, 1], // 基础颜色因子
+                    hsv: [-0.022, -0.511, -0.362], // HSV颜色调整
+                    baseColorIntensity: 0.84, // 基础颜色强度
+                    contrast: 3.564, // 对比度
+                    outputSRGB: 1, // 输出SRGB
+                    roughnessFactor: 0.11, // 粗糙度因子
+                    metallicFactor: 0.67, // 金属度因子
+                    uvScale: [0.05, 0.05], // UV缩放
+                    uvOffset: [0.2, 0.35], // UV偏移
+                    uvRotation: 0.8028514559173915, // UV旋转
+                    emissiveTexture: "/texture/webp6.jpg", // 自发光纹理
+                    emissiveFactor: [0, 0, 0], // 自发光因子
+                    emitColorFactor: 0.27, // 发光颜色因子
+                    emitMultiplicative: 0, // 发光乘数
+                    albedoPBRFactor: 1, // 反照率PBR因子
+                    outputLinear: 0, // 输出线性
+                    clearCoatF0: 0.04, // 清漆F0
+                    emitColor: [0, 0, 0] // 发光颜色
+                }
+            }
+        },
+        {
+            // 第二个样式：建筑侧面样式
+            filter: ["all",
+                ["==", "$type", "Polygon"]
+            ],
+            renderPlugin: {
+                type: "lit",
+                dataConfig: {
+                    type: "3d-extrusion",
+                    altitudeProperty: "height",
+               
+                    altitudeScale: 1,
+                    defaultAltitude: 10,
+                    topThickness: 2,
+                    top: false, // 不渲染顶面
+                    side: true // 渲染侧面
+                }
+            },
+            symbol: {
+                bloom: false, // 关闭泛光
+                ssr: false, // 关闭屏幕空间反射
+                polygonOpacity: 1, // 多边形不透明
+                material: { // 材质配置
+                    baseColorTexture: "/texture/Facades_06_basecolor.jpg", // 基础颜色纹理
+                    baseColorFactor: [1, 1, 1, 1],
+                    hsv: [0, 0.446, -0.158],
+                    baseColorIntensity: 1.318,
+                    contrast: 1.414,
+                    outputSRGB: 1,
+                    metallicRoughnessTexture: "/texture/Facades_06_roughness.jpg", // 金属粗糙度纹理
+                    roughnessFactor: 0.7,
+                    metallicFactor: 1,
+                    normalTexture: "/texture/Facades_06_normalogl.jpg", // 法线纹理
+                    uvScale: [0.86, 0.86],
+                    uvOffset: [0.35, 0],
+                    normalMapFactor: 0.69, // 法线贴图强度
+                    normalMapFlipY: 0, // 法线Y轴翻转
+                    bumpTexture: "/texture/Facades_06_height.jpg", // 凹凸纹理
+                    occlusionTexture: "/texture/Facades_06_ambientocclusion.jpg" // 环境光遮蔽纹理
+                }
+            }
+        }
+        ];
+
+        // 创建样式对象并应用到矢量瓦片图层
+        const style = {
+            style: [...buildingStlyes]
+        };
+        vt.setStyle(style);
+
+        // 创建组图层并配置场景效果
+        const groupLayer = new maptalks.GroupGLLayer("group", [vt], {
+            sceneConfig: {
+                environment: { // 环境配置
+                    enable: true,
+                    mode: 1, // 环境模式
+                    level: 0,
+                    brightness: 1 // 亮度
+                },
+                shadow: { // 阴影配置
+                    type: "esm", // 阴影类型：指数阴影贴图
+                    enable: true,
+                    quality: "high", // 高质量阴影
+                    opacity: 0.5, // 阴影不透明度
+                    color: [0, 0, 0], // 阴影颜色
+                    blurOffset: 1 // 模糊偏移
+                },
+                postProcess: { // 后处理配置
+                    enable: true,
+                    antialias: { // 抗锯齿
+                        enable: true
+                    },
+                    ssr: { // 屏幕空间反射
+                        enable: true
+                    },
+                    ssao: { // 屏幕空间环境光遮蔽
+                        enable: true,
+                        bias: 0.08, // 偏移
+                        radius: 0.08, // 半径
+                        intensity: 1.5 // 强度
+                    },
+                    sharpen: { // 锐化
+                        enable: true,
+                        factor: 0.5 // 锐化因子
+                    }
+                },
+                ground: { // 地面配置
+                    enable: false, // 关闭地面
+                    renderPlugin: {
+                        type: "lit"
+                    },
+                    symbol: {
+                        polygonFill: [0.54, 0.54, 0.54, 1],
+                        material: {
+                            baseColorFactor: [0.050980392, 0.050980392, 0.050980392, 1],
+                            outputSRGB: 1,
+                            roughnessFactor: 0.22,
+                            metallicFactor: 0.3
+                        }
+                    }
+                }
+            }
+        });
+        groupLayer.addTo(map); // 将组图层添加到地图
+    </script>
+</body>
+
+</html>

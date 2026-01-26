@@ -16,24 +16,28 @@ export const demoCategories = [
         title: "Light底图",
         description: "白色底图",
         icon: "🗺️",
+        image: "/img/maptalks-light.png",
       },
       {
         id: "maptalks-dark",
         title: "Dark底图",
         description: "黑色底图",
         icon: "🗺️",
+        image: "/img/maptalks-dark.png",
       },
       {
         id: "maptalks-esri",
         title: "ESRI底图",
         description: "esri官方遥感影像",
         icon: "🗺️",
+        image: "/img/maptalks-esri.png",
       },
       {
         id: "maptalks-css",
         title: "底图风格滤镜",
         description: "cssfilter",
         icon: "🗺️",
+        image: "/img/maptalks-css.png",
       },
     ],
   },
@@ -63,7 +67,15 @@ export const demoCategories = [
     name: "图层管理",
     description: "多图层切换和管理",
     icon: "📑",
-    demos: [],
+    demos: [
+      {
+        id: "2.5d-area",
+        title: "2.5D 行政区效果",
+        description: "2.5D 行政区效果",
+        icon: "🏢",
+        image: "/img/2.5d-area.png",
+      },
+    ],
   },
   {
     id: "services",
@@ -72,22 +84,81 @@ export const demoCategories = [
     icon: "🔧",
     demos: [
       {
-        id: "v2-添加深色地图",
-        title: "三维建筑",
-        description: "展示如何初始化一个基础三维建筑",
-        icon: "🏢",
-      },
-      {
         id: "Proj4-mkt",
         title: "Lambert投影-Geoserver",
-        description: "展示如何使用墨卡托和兰伯特投影之间的切换",
+        description:
+          "（需要启动Geoserver）展示如何使用墨卡托和兰伯特投影之间的切换",
         icon: "🗺",
+        image: "/img/Proj4-mkt.png",
+      },
+      {
+        id: "terrain-arcgis",
+        title: "arcgis地形",
+        description: "添加arcgisx地形",
+        icon: "🗺",
+        image: "/img/arcgis-terrain.png",
+      },
+      {
+        id: "terrain-arcgis-color",
+        title: "色彩地形",
+        description: "添加arcgisx地形",
+        icon: "🗺",
+        image: "/img/arcgis-terrain-color.png",
+      },
+      {
+        id: "terrain-arcgis-lit",
+        title: "光照阴影地形",
+        description: "添加arcgisx地形",
+        icon: "🗺",
+        image: "/img/arcgis-terrain-lit.png",
+      },
+    ],
+  },
+  {
+    id: "3dCity",
+    name: "三维效果",
+    description: "复杂的高级地图功能",
+    icon: "🏠",
+    demos: [
+      {
+        id: "3d-mvt-build",
+        title: "三维建筑白模",
+        description:
+          "（需要启动py后台读取数据）展示如何使用mvt加载大量十六昂瓦片并拉伸为三维建筑模型",
+        icon: "🏢",
+        image: "/img/3d-mvt-build.png",
+      },
+      {
+        id: "3d-buildings-texture",
+        title: "建筑物+纹理贴图",
+        description: "maptalks-gl实现效果，建筑，水面",
+        image: "/img/3d-buildings-texture.png",
+      },
+      {
+        id: "3d-water",
+        title: "水体效果",
+        description: "maptalks-gl实现水面",
+        image: "/img/3d-water.png",
+      },
+      {
+        id: "threejs_ocean_ship",
+        title: "three水体船只",
+        description: "海洋+船只+geojson裁剪区域",
+        image: "/img/threejs_ocean_ship.png",
       },
       {
         id: "3d-buildings",
         title: "threejs建筑扫描光效果",
         description: "maptalks+threejs",
         icon: "🏘",
+        image: "/img/3d-buildings.png",
+      },
+      {
+        id: "3d-gltf-tower",
+        title: "三维黄岛",
+        description: "maptalks+threejs",
+        icon: "🏘",
+        image: "/img/3d-gltf-tower.png",
       },
     ],
   },
@@ -96,7 +167,14 @@ export const demoCategories = [
     name: "高级功能",
     description: "复杂的高级地图功能",
     icon: "⚡",
-    demos: [],
+    demos: [
+      {
+        id: "Animation-clinematic",
+        title: "厄尔尼诺现象形成机制",
+        description: "厄尔尼诺现象形成机制演示动画",
+        icon: "🎞️",
+      },
+    ],
   },
 ];
 

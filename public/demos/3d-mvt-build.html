@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<meta charset='UTF-8' />
+<meta name='viewport' content='width=device-width, initial-scale=1' />
+<title>三维白模样式 - 设置高度</title>
+<style type='text/css'>
+    html,
+    body {
+        width: 100%;
+        height: 100%;
+        margin: 0px;
+    }
+
+    .container {
+        width: 100%;
+        height: 100%;
+    }
+</style>
+<link rel='stylesheet' href='https://maptalks.com/api/maptalks-gl.css' />
+<script type='text/javascript' src='https://maptalks.com/api/maptalks-gl.js'></script>
+
+<body>
+    <div id="map" class="container"></div>
+
+    <script>
+        const map = new maptalks.Map("map", {
+            center: [119.995518, 35.875138],
+            zoom: 16,
+            bearing: -18,
+            pitch: 60,
+            lights: {
+                directional: {
+                    direction: [1, 0, -1],
+                    color: [1, 1, 1]
+                },
+                ambient: {
+                    resource: {
+                        url: {
+                            front: "/resources/hdr/gradient/front.png",
+                            back: "/resources/hdr/gradient/back.png",
+                            left: "/resources/hdr/gradient/left.png",
+                            right: "/resources/hdr/gradient/right.png",
+                            top: "/resources/hdr/gradient/top.png",
+                            bottom: "/resources/hdr/gradient/bottom.png"
+                        },
+                        prefilterCubeSize: 32
+                    },
+                    exposure: 1,
+                    hsv: [0, 0.34, 0],
+                    orientation: 0
+                }
+            }
+        });
+
+        /**start**/
+        const vt = new maptalks.VectorTileLayer("vt", {
+            urlTemplate: "http://localhost:5000/tiles/test.mbtiles/{z}/{x}/{y}.mvt"
+        });
+        // 添加底图
+        const baseLayer = new maptalks.TileLayer("base", {
+            urlTemplate: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+            subdomains: ["a", "b", "c", "d"]
+        });
+        // 添加到地图
+
+        const style = {
+            style: [{
+                filter: ["all",
+                    ["==", "$type", "Polygon"]
+                ],
+                renderPlugin: {
+                    type: "lit",
+                    dataConfig: {
+                        type: "3d-extrusion",
+                        altitudeProperty: "height",
+                        altitudeScale: 1,
+                        defaultAltitude: 5,
+                        topThickness: 0,
+                        top: true,
+                        side: true
+                    },
+                    sceneConfig: {}
+                },
+                symbol: {
+                    material: {
+                        baseColorFactor: [0.9, 0.9, 0.9, 1],
+                        roughnessFactor: 1,
+                        metallicFactor: 0.5
+                    }
+                }
+            }]
+        };
+        vt.setStyle(style);
+        /**end**/
+
+        const groupLayer = new maptalks.GroupGLLayer("group", [baseLayer,vt], {
+            sceneConfig: {
+                environment: {
+                    enable: true,
+                    mode: 1,
+                    level: 0,
+                    brightness: 0
+                },
+                ground: {
+                    enable: true,
+                    renderPlugin: {
+                        type: "fill"
+                    },
+                    symbol: {
+                        polygonFill: [0.3098039, 0.3098039, 0.3098039, 1],
+                        polygonOpacity: 1
+                    }
+                }
+            }
+        });
+        groupLayer.addTo(map);
+    </script>
+</body>
+
+</html>

@@ -40,7 +40,10 @@
             class="demo-card"
             @click="viewDemo(demo.id)"
           >
-            <div class="demo-icon">{{ demo.icon || '📍' }}</div>
+            <div v-if="demo.image" class="demo-image-container">
+              <img :src="demo.image" :alt="demo.title" class="demo-image">
+            </div>
+            <div v-else class="demo-icon">{{ demo.icon || '📍' }}</div>
             <h4 class="demo-title">{{ demo.title }}</h4>
             <p class="demo-description">{{ demo.description }}</p>
             <div class="demo-actions">
@@ -260,7 +263,27 @@ onUnmounted(() => {
 
 .demo-icon {
   font-size: 2rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.demo-image-container {
+  width: 100%;
+  height: 120px;
+  overflow: hidden;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  background: #f0f0f0;
+}
+
+.demo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.demo-card:hover .demo-image {
+  transform: scale(1.05);
 }
 
 .demo-title {

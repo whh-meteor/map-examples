@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1' />
+    <title>综合场景 - 建筑、水面、GLB模型和地形</title>
+    <style type='text/css'>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0px;
+        }
+
+    .container {
+        width: 100%;
+        height: 100%;
+    }
+</style>
+
+<link rel='stylesheet' href='https://maptalks.com/api/maptalks-gl.css' />
+<script type='text/javascript' src='https://maptalks.com/api/maptalks-gl.js'></script>
+<script type='text/javascript' src='https://cdn.jsdelivr.net/npm/maptalks.tileclip@latest/dist/maptalks.tileclip.js'></script>
+<script src="../demos/threejs_ocean_ship/js/stats.min.js"></script>
+<script src="../demos/threejs_ocean_ship/js/three.js"></script>
+<script src="../demos/threejs_ocean_ship/js/OrbitControls.js"></script>
+<script src="../demos/threejs_ocean_ship/js/OBJLoader.js"></script>
+<script src="../demos/threejs_ocean_ship/js/MTLLoader.js"></script>
+<script src="../demos/threejs_ocean_ship/js/CSS2DRenderer.js"></script>
+<script src="../demos/threejs_ocean_ship/js/water.js"></script>
+<script src="https://unpkg.com/maptalks.three/dist/maptalks.three.min.js"></script>
+
+<body>
+    <div id="map" class="container"></div>
+
+    <script>
+        // 等待页面和所有脚本加载完成
+        window.onload = function() {
+            // 检查必要的库是否加载
+            if (typeof maptalks === 'undefined') {
+                console.error('maptalks is not loaded');
+                return;
+            }
+            
+            // 初始化地图，设置中心点、缩放级别、方位角和俯仰角
+        const map = new maptalks.Map("map", {
+            center: [120.2197, 35.9437], // 地图中心坐标 [经度, 纬度]
+            zoom: 18, // 缩放级别
+            bearing: -18, // 方位角（旋转角度）
+            pitch: 60, // 俯仰角（倾斜角度）
+            maxAvailableZoom: 16, // 地图最大可用缩放级别
+            lights: { // 灯光配置
+                directional: { // 平行光
+                    direction: [-1, 0, -1], // 光照方向
+                    color: [1, 1, 1] // 光照颜色（白色）
+                },
+            },
+          
+        });
+           const baseLayer= new maptalks.TileLayer("base", { // 底图层配置
+            urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            subdomains: ["a", "b", "c", "d"],
+          })
+        // 创建建筑矢量瓦片图层
+        const vtBuildings = new maptalks.VectorTileLayer("vtBuildings", {
+            urlTemplate: "http://localhost:5000/tiles/test.mbtiles/{z}/{x}/{y}.mvt", // 矢量瓦片服务地址
+            maxAvailableZoom: 16 // 最大可用缩放级别
+        });    // 建筑样式配置数组
+            const buildingStlyes = [{
+                // 第一个样式：建筑顶面样式
+                filter: ["all",
+                    ["==", "$type", "Polygon"] // 过滤多边形类型
+                ],
+                renderPlugin: {
+                    type: "lit", // 使用光照渲染插件
+                    dataConfig: {
+                        type: "3d-extrusion", // 3D挤出类型
+                        altitudeProperty: "height", // 高度属性名
+
+                        altitudeScale: 1, // 高度缩放比例
+                        defaultAltitude: 10, // 默认高度
+                        topThickness: 2, // 顶面厚度
+                        top: true, // 渲染顶面
+                        side: false // 不渲染侧面
+                    },
+                    sceneConfig: {
+                        animation: null, // 无动画
+                        animationDuration: 800 // 动画持续时间
+                    }
+                },
+                symbol: {
+                    polygonOpacity: 0.6, // 多边形透明度
+                    material: { // 材质配置
+                        baseColorTexture: "/texture/webp8.jpg", // 基础颜色纹理
+                        baseColorFactor: [0.3137254901960784, 0.30980392156862746, 0.3137254901960784, 1], // 基础颜色因子
+                        hsv: [-0.022, -0.511, -0.362], // HSV颜色调整
+                        baseColorIntensity: 0.84, // 基础颜色强度
+                        contrast: 3.564, // 对比度
+                        outputSRGB: 1, // 输出SRGB
+                        roughnessFactor: 0.11, // 粗糙度因子
+                        metallicFactor: 0.67, // 金属度因子
+                        uvScale: [0.05, 0.05], // UV缩放
+                        uvOffset: [0.2, 0.35], // UV偏移
+                        uvRotation: 0.8028514559173915, // UV旋转
+                        emissiveTexture: "/texture/webp6.jpg", // 自发光纹理
+                        emissiveFactor: [0, 0, 0], // 自发光因子
+                        emitColorFactor: 0.27, // 发光颜色因子
+                        emitMultiplicative: 0, // 发光乘数
+                        albedoPBRFactor: 1, // 反照率PBR因子
+                        outputLinear: 0, // 输出线性
+                        clearCoatF0: 0.04, // 清漆F0
+                        emitColor: [0, 0, 0] // 发光颜色
+                    }
+                }
+            },
+            {
+                // 第二个样式：建筑侧面样式
+                filter: ["all",
+                    ["==", "$type", "Polygon"]
+                ],
+                renderPlugin: {
+                    type: "lit",
+                    dataConfig: {
+                        type: "3d-extrusion",
+                        altitudeProperty: "height",
+
+                        altitudeScale: 1,
+                        defaultAltitude: 10,
+                        topThickness: 2,
+                        top: false, // 不渲染顶面
+                        side: true // 渲染侧面
+                    }
+                },
+                symbol: {
+                    bloom: false, // 关闭泛光
+                    ssr: false, // 关闭屏幕空间反射
+                    polygonOpacity: 1, // 多边形不透明
+                    material: { // 材质配置
+                        baseColorTexture: "/texture/Facades_06_basecolor.jpg", // 基础颜色纹理
+                        baseColorFactor: [1, 1, 1, 1],
+                        hsv: [0, 0.446, -0.158],
+                        baseColorIntensity: 1.318,
+                        contrast: 1.414,
+                        outputSRGB: 1,
+                        metallicRoughnessTexture: "/texture/Facades_06_roughness.jpg", // 金属粗糙度纹理
+                        roughnessFactor: 0.7,
+                        metallicFactor: 1,
+                        normalTexture: "/texture/Facades_06_normalogl.jpg", // 法线纹理
+                        uvScale: [0.86, 0.86],
+                        uvOffset: [0.35, 0],
+                        normalMapFactor: 0.69, // 法线贴图强度
+                        normalMapFlipY: 0, // 法线Y轴翻转
+                        bumpTexture: "/texture/Facades_06_height.jpg", // 凹凸纹理
+                        occlusionTexture: "/texture/Facades_06_ambientocclusion.jpg" // 环境光遮蔽纹理
+                    }
+                }
+            }
+            ];
+
+            // 创建样式对象并应用到矢量瓦片图层
+            const style = {
+                style: [...buildingStlyes]
+            };
+            vtBuildings.setStyle(style);
+      
+
+        // 建筑样式配置数组
+        const buildingStyles = [{
+            // 第一个样式：建筑顶面样式
+            filter: ["all", 
+                ["==", "$type", "Polygon"] // 过滤多边形类型
+            ],
+            renderPlugin: {
+                type: "lit", // 使用光照渲染插件
+                dataConfig: {
+                     awareOfTerrain: true,// 贴地
+                    type: "3d-extrusion", // 3D挤出类型
+                    altitudeProperty: "height", // 高度属性名
+                    altitudeScale: 1, // 高度缩放比例
+                    defaultAltitude: 10, // 默认高度
+                    topThickness: 2, // 顶面厚度
+                    top: true, // 渲染顶面
+                    side: false // 不渲染侧面
+                },
+                sceneConfig: {
+                    animation: null, // 无动画
+                    animationDuration: 800 // 动画持续时间
+                }
+            },
+            symbol: {
+                polygonOpacity: 0.6, // 多边形透明度
+                material: { // 材质配置
+                    baseColorTexture: "/texture/webp8.jpg", // 基础颜色纹理
+                    baseColorFactor: [0.3137254901960784, 0.30980392156862746, 0.3137254901960784, 1], // 基础颜色因子
+                    hsv: [-0.022, -0.511, -0.362], // HSV颜色调整
+                    baseColorIntensity: 0.84, // 基础颜色强度
+                    contrast: 3.564, // 对比度
+                    outputSRGB: 1, // 输出SRGB
+                    roughnessFactor: 0.11, // 粗糙度因子
+                    metallicFactor: 0.67, // 金属度因子
+                    uvScale: [0.05, 0.05], // UV缩放
+                    uvOffset: [0.2, 0.35], // UV偏移
+                    uvRotation: 0.8028514559173915, // UV旋转
+                    emissiveTexture: "/texture/webp6.jpg", // 自发光纹理
+                    emissiveFactor: [0, 0, 0], // 自发光因子
+                    emitColorFactor: 0.27, // 发光颜色因子
+                    emitMultiplicative: 0, // 发光乘数
+                    albedoPBRFactor: 1, // 反照率PBR因子
+                    outputLinear: 0, // 输出线性
+                    clearCoatF0: 0.04, // 清漆F0
+                    emitColor: [0, 0, 0] // 发光颜色
+                }
+            }
+        },
+        {
+            // 第二个样式：建筑侧面样式
+            filter: ["all",
+                ["==", "$type", "Polygon"]
+            ],
+            renderPlugin: {
+                type: "lit",
+                dataConfig: {
+                      awareOfTerrain: true,// 贴地
+                    type: "3d-extrusion",
+                    altitudeProperty: "height",
+                    altitudeScale: 1,
+                    defaultAltitude: 10,
+                    topThickness: 2,
+                    top: false, // 不渲染顶面
+                    side: true // 渲染侧面
+                }
+            },
+            symbol: {
+                bloom: false, // 关闭泛光
+                ssr: false, // 关闭屏幕空间反射
+                polygonOpacity: 1, // 多边形不透明
+                material: { // 材质配置
+                    baseColorTexture: "/texture/Facades_06_basecolor.jpg", // 基础颜色纹理
+                    baseColorFactor: [1, 1, 1, 1],
+                    hsv: [0, 0.446, -0.158],
+                    baseColorIntensity: 1.318,
+                    contrast: 1.414,
+                    outputSRGB: 1,
+                    metallicRoughnessTexture: "/texture/Facades_06_roughness.jpg", // 金属粗糙度纹理
+                    roughnessFactor: 0.7,
+                    metallicFactor: 1,
+                    normalTexture: "/texture/Facades_06_normalogl.jpg", // 法线纹理
+                    uvScale: [0.86, 0.86],
+                    uvOffset: [0.35, 0],
+                    normalMapFactor: 0.69, // 法线贴图强度
+                    normalMapFlipY: 0, // 法线Y轴翻转
+                    bumpTexture: "/texture/Facades_06_height.jpg", // 凹凸纹理
+                    occlusionTexture: "/texture/Facades_06_ambientocclusion.jpg" // 环境光遮蔽纹理
+                }
+            }
+        }];
+
+    
+   
+        // 创建GLB模型图层
+        const symbol = {
+            url: "/demos/3d-buildings/glbfile.glb",
+            modelHeight: 240, // model height, Unit is meters
+            scaleX: 2,
+            scaleY: 2,
+            scaleZ: 2,
+            rotationZ: 180
+        };
+
+        const glbLayer = new maptalks.GLTFLayer("gltf");
+        const gltfMarker = new maptalks.GLTFMarker([120.2197, 35.9437], {
+            symbol,
+        });
+        glbLayer.addGeometry(gltfMarker);
+
+        // 地形配置
+        const terrain = {
+            type: "mapbox",
+            maxAvailableZoom: 14,
+            requireSkuToken: false,
+            urlTemplate: "https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer/tile/{z}/{y}/{x}",
+            subdomains: ["a", "b", "c", "d"],
+            exaggeration: 3, // 地形夸张系数，增强地形起伏效果
+            depthMask: true, // 启用深度遮罩
+            shader: 'lit', // 使用光照着色器，使地形有立体感
+        };
+
+        // 创建组图层并配置场景效果
+        const groupLayer = new maptalks.GroupGLLayer("group", [vtBuildings, glbLayer , baseLayer], {
+            terrain, // 添加地形配置
+            sceneConfig: {
+                environment: { // 环境配置
+                    enable: true,
+                    mode: 1, // 环境模式
+                    level: 0,
+                    brightness: 1 // 亮度
+                },
+                shadow: { // 阴影配置
+                    type: "esm", // 阴影类型：指数阴影贴图
+                    enable: true,
+                    quality: "high", // 高质量阴影
+                    opacity: 0.5, // 阴影不透明度
+                    color: [0, 0, 0], // 阴影颜色
+                    blurOffset: 1 // 模糊偏移
+                },
+                postProcess: { // 后处理配置
+                    enable: true,
+                    antialias: { // 抗锯齿
+                        enable: true
+                    },
+                    ssr: { // 屏幕空间反射
+                        enable: true
+                    },
+                    ssao: { // 屏幕空间环境光遮蔽
+                        enable: true,
+                        bias: 0.08, // 偏移
+                        radius: 0.08, // 半径
+                        intensity: 1.5 // 强度
+                    },
+                    sharpen: { // 锐化
+                        enable: true,
+                        factor: 0.5 // 锐化因子
+                    }
+                },
+                ground: { // 地面配置
+                    enable: false, // 关闭地面
+                    renderPlugin: {
+                        type: "lit"
+                    },
+                    symbol: {
+                        polygonFill: [0.54, 0.54, 0.54, 1],
+                        material: {
+                            baseColorFactor: [0.050980392, 0.050980392, 0.050980392, 1],
+                            outputSRGB: 1,
+                            roughnessFactor: 0.22,
+                            metallicFactor: 0.3
+                        }
+                    }
+                }
+            }
+        });
+
+        // 监听地形图层创建事件，配置地形瓦片编码
+        groupLayer.on("terrainlayercreated", (e) => {
+            const terrainLayer = groupLayer.getTerrainLayer();
+            const tileActor = maptalks.getTileActor();
+
+            terrainLayer.getRenderer().loadTileBitmap = (url, tile, callback) => {
+                const absoluteUrl = maptalks.Util.getAbsoluteURL(url);
+               // console.log("Loading terrain tile:", absoluteUrl);
+
+                tileActor
+                    .encodeTerrainTile({
+                        url: absoluteUrl,
+                        terrainType: "arcgis",
+                        indexedDBCache: true,
+                        fetchOptions: {
+                            headers: {
+                                'Accept': 'image/png, image/jpeg, image/webp'
+                            }
+                        }
+                    })
+                    .then((imagebitmap) => {
+                        console.log("Terrain tile encoded successfully");
+                        callback(null, imagebitmap);
+                    })
+                    .catch((error) => {
+                        console.error("地形编码失败:", error);
+                        console.error("Error details:", error.message, error.stack);
+                        callback(error);
+                    });
+            };
+        });
+
+        groupLayer.addTo(map); // 将组图层添加到地图
+
+        // ================== Three.js 整合部分 ==================
+        var stats;
+        var threeLayer;
+        var scene, camera, renderer;
+        var water;
+        var raycaster = new THREE.Raycaster();
+        var mouse = new THREE.Vector2();
+        var raycaster2 = new THREE.Raycaster();
+        var mouse2 = new THREE.Vector2();
+        var objectArr = [];
+        var infoModal, labelRenderer;
+        var engineerShip, thingsShip, helicopter;
+
+        function initStats() {
+            stats = new Stats();
+            stats.showPanel(0);
+            stats.dom.style.position = "absolute";
+            stats.dom.style.right = "0px";
+            stats.dom.style.left = "unset";
+            stats.dom.style.top = "0px";
+            document.body.appendChild(stats.dom);
+
+            function animate() {
+                stats.begin();
+                stats.end();
+                requestAnimationFrame(animate);
+            }
+            requestAnimationFrame(animate);
+        }
+
+        function initThreeLayer() {
+            threeLayer = new maptalks.ThreeLayer("three", {
+                forceRenderOnMoving: true,
+                forceRenderOnRotating: true,
+                forceRenderOnZooming: true,
+            });
+
+            threeLayer.prepareToDraw = function (gl, sceneObj, cameraObj) {
+                scene = sceneObj;
+                camera = cameraObj;
+
+                var axes = new THREE.AxisHelper(120);
+                scene.add(axes);
+
+                scene.rotation.x = -Math.PI / 2;
+
+                initLights();
+                initWater();
+                initObjModel();
+                init2DRenderer();
+                initAnimate();
+            };
+
+            threeLayer.addTo(map);
+
+            threeLayer.on('add', function() {
+                var renderer = threeLayer.getRenderer();
+                if (renderer && renderer.context) {
+                    renderer.context.depthFunc = renderer.context.LEQUAL;
+                }
+            });
+        }
+
+        function init2DRenderer() {
+            labelRenderer = new THREE.CSS2DRenderer();
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.domElement.style.position = "absolute";
+            labelRenderer.domElement.style.top = 0;
+            labelRenderer.domElement.style.pointerEvents = "none";
+            document.body.appendChild(labelRenderer.domElement);
+        }
+
+        function initLights() {
+            var ambientLight = new THREE.AmbientLight(0x404040, 1.5);
+            scene.add(ambientLight);
+
+            var directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(0, 100, 0);
+            scene.add(directionalLight);
+
+            var spotLight1 = new THREE.SpotLight(0xffffff);
+            spotLight1.position.set(-50, 100, 0);
+            scene.add(spotLight1);
+
+            var spotLight2 = new THREE.SpotLight(0xffffff);
+            spotLight2.position.set(550, 500, 0);
+            scene.add(spotLight2);
+
+            var spotLight3 = new THREE.SpotLight(0xffffff);
+            spotLight3.position.set(150, 50, -200);
+            scene.add(spotLight3);
+
+            var spotLight4 = new THREE.SpotLight(0xffffff);
+            spotLight4.position.set(150, 50, 200);
+            scene.add(spotLight4);
+
+            var spotLight5 = new THREE.SpotLight(0xffffff);
+            spotLight5.position.set(-500, 10, 0);
+            scene.add(spotLight5);
+        }
+
+        function initWater() {
+            var light = new THREE.DirectionalLight(0xffffff, 0.8);
+            scene.add(light);
+
+            var textureLoader = new THREE.TextureLoader();
+            textureLoader.load("../demos/threejs_ocean_ship/objs/waternormals.jpg", function (texture) {
+                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+
+                fetch("../demos/threejs_ocean_ship/objs/water_shape.geojson")
+                    .then((response) => response.json())
+                    .then((geojson) => {
+                        var waterGeometry = createWaterGeometryFromGeoJSON(geojson);
+
+                        if (waterGeometry) {
+                            water = new THREE.Water(waterGeometry, {
+                                textureWidth: 512,
+                                textureHeight: 512,
+                                waterNormals: texture,
+                                alpha: 0.8, // 水面透明度
+                                sunDirection: light.position.clone().normalize(),
+                                sunColor: 0xffffff,
+                                waterColor: 0x00456e,
+                                distortionScale: 5.7,
+                                fog: scene.fog !== undefined,
+                            });
+
+                            water.renderOrder = -100;
+                            water.material.transparent = true;
+                            water.material.depthWrite = false; // 避免遮挡
+
+                            scene.add(water);
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Error loading geojson:", error);
+                        var waterGeometry = new THREE.PlaneBufferGeometry(10000, 10000);
+                        water = new THREE.Water(waterGeometry, {
+                            textureWidth: 512,
+                            textureHeight: 512,
+                            waterNormals: texture,
+                            alpha: 0.8,
+                            sunDirection: light.position.clone().normalize(),
+                            sunColor: 0xffffff,
+                            waterColor: 0x00456e,
+                            distortionScale: 5.7,
+                            fog: scene.fog !== undefined,
+                        });
+
+                        var waterPosition = threeLayer.coordinateToVector3([120.2197, 35.6437], 0);
+                        water.position.copy(waterPosition);
+
+                        water.renderOrder = -100;
+                        water.material.transparent = true;
+                        water.material.depthWrite = false;
+
+                        scene.add(water);
+                    });
+            });
+        }
+
+        function createWaterGeometryFromGeoJSON(geojson) {
+            if (!geojson || !geojson.features || geojson.features.length === 0) {
+                return null;
+            }
+
+            var shapes = [];
+
+            geojson.features.forEach(function (feature) {
+                if (!feature.geometry) {
+                    return;
+                }
+
+                if (feature.geometry.type === "Polygon") {
+                    processPolygon(feature.geometry.coordinates, shapes);
+                } else if (feature.geometry.type === "MultiPolygon") {
+                    feature.geometry.coordinates.forEach(function (polygonCoordinates) {
+                        processPolygon(polygonCoordinates, shapes);
+                    });
+                }
+            });
+
+            if (shapes.length === 0) {
+                return null;
+            }
+
+            var geometry;
+            if (shapes.length === 1) {
+                geometry = new THREE.ShapeGeometry(shapes[0]);
+            } else {
+                geometry = new THREE.BufferGeometry();
+                var allVertices = [];
+                var allIndices = [];
+                var indexOffset = 0;
+
+                shapes.forEach(function (shape) {
+                    var shapeGeometry = new THREE.ShapeGeometry(shape);
+                    var shapeVertices = shapeGeometry.attributes.position.array;
+                    var shapeIndices = [];
+
+                    for (var i = 0; i < shapeVertices.length / 3; i++) {
+                        shapeIndices.push(i + indexOffset);
+                    }
+
+                    allVertices.push(...shapeVertices);
+                    allIndices.push(...shapeIndices);
+                    indexOffset += shapeVertices.length / 3;
+                });
+
+                geometry.setAttribute(
+                    "position",
+                    new THREE.Float32BufferAttribute(allVertices, 3)
+                );
+                geometry.setIndex(allIndices);
+                geometry.computeBoundingSphere();
+            }
+
+            return geometry;
+        }
+
+        function processPolygon(coordinates, shapes) {
+            if (!coordinates || coordinates.length === 0) {
+                return;
+            }
+
+            var outerRing = coordinates[0];
+            if (!outerRing || outerRing.length < 3) {
+                return;
+            }
+
+            var shape = new THREE.Shape();
+
+            var firstPoint = threeLayer.coordinateToVector3(outerRing[0], 0);
+            shape.moveTo(firstPoint.x, firstPoint.y);
+
+            for (var i = 1; i < outerRing.length; i++) {
+                var point = threeLayer.coordinateToVector3(outerRing[i], 0);
+                shape.lineTo(point.x, point.y);
+            }
+
+            shape.closePath();
+
+            for (var j = 1; j < coordinates.length; j++) {
+                var innerRing = coordinates[j];
+                if (!innerRing || innerRing.length < 3) {
+                    continue;
+                }
+
+                var hole = new THREE.Path();
+
+                var firstHolePoint = threeLayer.coordinateToVector3(innerRing[0], 0);
+                hole.moveTo(firstHolePoint.x, firstHolePoint.y);
+
+                for (var k = 1; k < innerRing.length; k++) {
+                    var holePoint = threeLayer.coordinateToVector3(innerRing[k], 0);
+                    hole.lineTo(holePoint.x, holePoint.y);
+                }
+
+                hole.closePath();
+
+                shape.holes.push(hole);
+            }
+
+            shapes.push(shape);
+        }
+
+        function getMesh(s, arr, name = "") {
+            s.forEach((v) => {
+                if (v.children && v.children.length > 0) {
+                    getMesh(v.children, arr, v.name);
+                } else {
+                    if (v instanceof THREE.Mesh) {
+                        if (name) {
+                            v.name = name;
+                        }
+                        arr.push(v);
+                    }
+                }
+            });
+        }
+
+        function initObjModel() {
+            var onProgress = function (xhr) {
+                if (xhr.lengthComputable) {
+                    var percentComplete = (xhr.loaded / xhr.total) * 100;
+                    if (percentComplete === 100) {
+                        objectArr = [];
+                        scene.traverse(function (s) {
+                            if (s && s.type === "Scene") {
+                                getMesh(s.children, objectArr);
+                            }
+                        });
+                    }
+                }
+            };
+            var onError = function (xhr) { };
+            var mtlLoader = new THREE.MTLLoader();
+
+            mtlLoader.load("../demos/threejs_ocean_ship/objs/工程船.mtl", function (materials) {
+                materials.preload();
+                var objLoader = new THREE.OBJLoader();
+                objLoader.setMaterials(materials);
+                objLoader.load(
+                    "../demos/threejs_ocean_ship/objs/工程船.obj",
+                    function (object) {
+                        object.traverse(function (child) {
+                            if (child instanceof THREE.Mesh) {
+                                if (child.material) {
+                                    if (
+                                        typeof child.material === "object" &&
+                                        child.material.isMaterial
+                                    ) {
+                                        child.material.side = THREE.DoubleSide;
+                                    } else if (Array.isArray(child.material)) {
+                                        child.material.forEach(function (material) {
+                                            material.side = THREE.DoubleSide;
+                                        });
+                                    }
+                                }
+                            }
+                        });
+
+                        var position = threeLayer.coordinateToVector3([120.2497, 35.9437], 0);
+                        object.position.copy(position);
+                        object.position.x -= 50;
+                        object.position.y -= 50;
+                        object.scale.set(0.0006, 0.0006, 0.0006);
+                        object.rotation.x = Math.PI / 2;
+                        object.name = "engineerShip";
+                        engineerShip = object;
+                        scene.add(object);
+                    },
+                    onProgress,
+                    onError
+                );
+            });
+
+            mtlLoader.load("../demos/threejs_ocean_ship/objs/运输船.mtl", function (materials) {
+                materials.preload();
+                var objLoader = new THREE.OBJLoader();
+                objLoader.setMaterials(materials);
+                objLoader.load(
+                    "../demos/threejs_ocean_ship/objs/运输船.obj",
+                    function (object) {
+                        object.traverse(function (child) {
+                            if (child instanceof THREE.Mesh) {
+                                if (child.material) {
+                                    if (
+                                        typeof child.material === "object" &&
+                                        child.material.isMaterial
+                                    ) {
+                                        child.material.side = THREE.DoubleSide;
+                                    } else if (Array.isArray(child.material)) {
+                                        child.material.forEach(function (material) {
+                                            material.side = THREE.DoubleSide;
+                                        });
+                                    }
+                                }
+                            }
+                        });
+
+                        var position = threeLayer.coordinateToVector3([120.2197, 35.9037], 0);
+                        object.position.copy(position);
+                        object.position.x += 5;
+                        object.position.y += 5;
+                        object.scale.set(0.03, 0.03, 0.03);
+                        object.rotation.x = Math.PI / 2;
+                        object.name = "thingsShip";
+                        thingsShip = object;
+                        scene.add(object);
+                    },
+                    onProgress,
+                    onError
+                );
+            });
+
+            mtlLoader.load("../demos/threejs_ocean_ship/objs/直升机.mtl", function (materials) {
+                materials.preload();
+                var objLoader = new THREE.OBJLoader();
+                objLoader.setMaterials(materials);
+                objLoader.load(
+                    "../demos/threejs_ocean_ship/objs/直升机.obj",
+                    function (object) {
+                        object.traverse(function (child) {
+                            if (child instanceof THREE.Mesh) {
+                                if (child.material) {
+                                    if (
+                                        typeof child.material === "object" &&
+                                        child.material.isMaterial
+                                    ) {
+                                        child.material.side = THREE.DoubleSide;
+                                    } else if (Array.isArray(child.material)) {
+                                        child.material.forEach(function (material) {
+                                            material.side = THREE.DoubleSide;
+                                        });
+                                    }
+                                }
+                            }
+                        });
+
+                        var position = threeLayer.coordinateToVector3([120.2197, 35.937], 0);
+                        object.position.copy(position);
+                        object.position.x += 30;
+                        object.position.y += 30;
+                        object.position.z += 50;
+                        object.scale.set(0.1, 0.1, 0.1);
+                        object.rotation.x = Math.PI / 2;
+                        object.name = "helicopter";
+                        helicopter = object;
+                        scene.add(object);
+                    },
+                    onProgress,
+                    onError
+                );
+            });
+        }
+
+        function initAnimate() {
+            var time = 0;
+            function animate() {
+                requestAnimationFrame(animate);
+                time += 0.01;
+
+                if (water) {
+                    water.material.uniforms["time"].value += 1.0 / 60.0;
+                }
+
+                if (helicopter) {
+                    helicopter.rotation.z += 0.01;
+                    helicopter.position.z = 50 + Math.sin(time * 2) * 5;
+                }
+
+                if (engineerShip) {
+                      // 由于场景旋转，现在y轴是地图平面的前后方向
+                    engineerShip.position.y += 0.01;
+                    if (
+                        engineerShip.position.y >=
+                        threeLayer.coordinateToVector3([120, 35.6], 0).y + 50
+                    ) {
+                        engineerShip.position.x += 0.01;
+                        engineerShip.rotation.y += 0.001;
+                    }
+                    engineerShip.position.z = Math.sin(time) * 0.2;
+                    engineerShip.rotation.z = Math.sin(time * 0.5) * 0.02;
+                }
+
+                if (thingsShip) { 
+                     // 由于场景旋转，现在y轴是地图平面的前后方向
+                    thingsShip.position.y += 0.01;
+                    if (
+                        thingsShip.position.y >=
+                        threeLayer.coordinateToVector3([120, 35.6], 0).y + 60
+                    ) {
+                        thingsShip.position.x += 0.01;
+                        thingsShip.rotation.y += 0.001;
+                    }
+                    thingsShip.position.z = Math.sin(time * 0.8 + 1) * 0.2;
+                    thingsShip.rotation.z = Math.sin(time * 0.6 + 0.5) * 0.02;
+                }
+
+                if (labelRenderer && scene && camera) {
+                    labelRenderer.render(scene, camera);
+                }
+
+                threeLayer.redraw();
+            }
+            animate();
+        }
+
+        function initAll() {
+            initStats();
+            initThreeLayer();
+        }
+
+        initAll();
+        }; // 结束 window.onload
+    </script>
+</body>
+</html>

@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>厄尔尼诺现象形成机制 - Cinematic Explanation</title>
+    <style>
+        /* --- 全局设置 --- */
+        :root {
+            --bg-color: #f4f7f6;
+            --sky-top: #e0f7fa;
+            --sky-bottom: #b2ebf2;
+            --ocean-deep: #0288d1;
+            --ocean-surface: #4fc3f7;
+            --warm-water: #ffcc80; /* 暖水颜色 */
+            --warm-water-core: #ff7043;
+            --land-color: #dcedc8;
+            --land-border: #aed581;
+            --text-primary: #37474f;
+            --text-secondary: #546e7a;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* --- 影院容器 --- */
+        #stage {
+            width: 90vw;
+            max-width: 1200px;
+            aspect-ratio: 16/9;
+            background: linear-gradient(to bottom, var(--sky-top) 0%, var(--sky-bottom) 50%, #fff 100%);
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+            border: 8px solid #fff;
+        }
+
+        /* --- 场景元素：背景与陆地 --- */
+        .sun {
+            position: absolute;
+            top: 10%;
+            right: 20%;
+            width: 80px;
+            height: 80px;
+            background: #fff9c4;
+            border-radius: 50%;
+            box-shadow: 0 0 40px #fff59d;
+            opacity: 0.8;
+            transition: all 2s ease;
+        }
+
+        .land {
+            position: absolute;
+            bottom: 30%; /* 海平面以上 */
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .land-shape {
+            background-color: var(--land-color);
+            border-bottom: none;
+            border-radius: 10px 10px 0 0;
+            box-shadow: inset 0 -5px 0 rgba(0,0,0,0.05);
+        }
+
+        .land-label {
+            margin-top: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* 澳洲/印尼 (左) */
+        .land-left {
+            left: 0;
+            width: 15%;
+            height: 20%;
+            bottom: 25%; /* 对齐海平面 */
+        }
+        .land-left .land-shape { width: 100%; height: 100%; border-radius: 0 30px 0 0; }
+        
+        /* 南美洲 (右) */
+        .land-right {
+            right: 0;
+            width: 15%;
+            height: 35%;
+            bottom: 25%;
+        }
+        .land-right .land-shape { width: 100%; height: 100%; border-radius: 30px 0 0 0; }
+
+        /* --- 海洋系统 --- */
+        .ocean-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 25%; /* 海洋深度 */
+            z-index: 5;
+            background-color: var(--ocean-deep); /* 深海冷水 */
+            overflow: hidden;
+        }
+
+        /* 暖水层 (SVG 动态控制) */
+        .warm-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            fill: url(#warmGradient);
+            transition: d 3s ease-in-out; /* 关键：SVG路径动画 */
+        }
+
+        /* --- 大气系统：风 --- */
+        .wind-container {
+            position: absolute;
+            bottom: 30%; /* 海面上方 */
+            left: 15%;
+            width: 70%;
+            height: 10%;
+            z-index: 15;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            opacity: 0; /* 初始隐藏 */
+            transition: opacity 1s;
+        }
+
+        .arrow {
+            width: 40px;
+            height: 4px;
+            background: rgba(255,255,255,0.6);
+            position: relative;
+            border-radius: 2px;
+        }
+        .arrow::after {
+            content: '';
+            position: absolute;
+            left: -5px;
+            top: -3px;
+            border-right: 8px solid rgba(255,255,255,0.6);
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+        }
+
+        /* 风的动画状态 */
+        .wind-strong .arrow {
+            animation: moveLeft 1s infinite linear;
+        }
+        .wind-weak .arrow {
+            animation: moveLeft 3s infinite linear;
+            opacity: 0.5;
+        }
+        
+        @keyframes moveLeft {
+            0% { transform: translateX(20px); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateX(-20px); opacity: 0; }
+        }
+
+        /* --- 大气系统：云和雨 --- */
+        .clouds-container {
+            position: absolute;
+            top: 20%;
+            left: 10%; /* 初始在西太平洋 */
+            width: 200px;
+            height: 100px;
+            transition: left 3s ease-in-out, opacity 1s;
+            opacity: 0;
+            z-index: 8;
+        }
+
+        .cloud {
+            background: #fff;
+            border-radius: 50px;
+            position: absolute;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .c1 { width: 80px; height: 30px; top: 0; left: 0; }
+        .c2 { width: 100px; height: 40px; top: -15px; left: 30px; }
+        .c3 { width: 70px; height: 30px; top: 5px; left: 80px; }
+
+        .rain {
+            position: absolute;
+            top: 40px;
+            left: 0;
+            width: 100%;
+            height: 100px;
+            overflow: hidden;
+            display: none; /* 初始无雨 */
+        }
+        .drop {
+            position: absolute;
+            width: 2px;
+            height: 10px;
+            background: #90caf9;
+            animation: rainFall 0.8s infinite linear;
+        }
+
+        @keyframes rainFall {
+            0% { transform: translateY(-10px); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(100px); opacity: 0; }
+        }
+
+        /* --- 字幕与UI --- */
+        .ui-layer {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            z-index: 100;
+            text-align: center;
+        }
+
+        .subtitle-box {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 20px 40px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255,255,255,0.8);
+            transition: opacity 0.5s;
+        }
+
+        .sub-cn {
+            display: block;
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .sub-en {
+            display: block;
+            font-size: 16px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        /* 标题画面 */
+        .title-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            transition: opacity 1s;
+        }
+        .main-title {
+            font-size: 48px;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+        .sub-title {
+            font-size: 20px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 4px;
+        }
+
+        /* 热力指示器 (Thermocline) */
+        .thermocline-label {
+            position: absolute;
+            bottom: 10%;
+            font-size: 12px;
+            color: rgba(255,255,255,0.8);
+            z-index: 20;
+            font-style: italic;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="stage">
+        <!-- 标题层 -->
+        <div class="title-screen" id="titleScreen">
+            <h1 class="main-title">厄尔尼诺现象</h1>
+            <span class="sub-title">El Niño : The Child</span>
+        </div>
+
+        <!-- 太阳 -->
+        <div class="sun"></div>
+
+        <!-- 大气层：云与雨 -->
+        <div class="clouds-container" id="clouds">
+            <div class="cloud c1"></div>
+            <div class="cloud c2"></div>
+            <div class="cloud c3"></div>
+            <div class="rain" id="rain"></div>
+        </div>
+
+        <!-- 大气层：风 -->
+        <div class="wind-container" id="wind">
+            <div class="arrow"></div>
+            <div class="arrow"></div>
+            <div class="arrow"></div>
+            <div class="arrow"></div>
+            <div class="arrow"></div>
+        </div>
+
+        <!-- 陆地 -->
+        <div class="land land-left">
+            <div class="land-shape"></div>
+            <div class="land-label">Australia / Asia</div>
+        </div>
+        <div class="land land-right">
+            <div class="land-shape"></div>
+            <div class="land-label">South America</div>
+        </div>
+
+        <!-- 海洋 -->
+        <div class="ocean-container">
+            <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="warmGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:var(--warm-water-core);stop-opacity:0.9" />
+                        <stop offset="100%" style="stop-color:var(--warm-water);stop-opacity:0.7" />
+                    </linearGradient>
+                </defs>
+                <!-- 暖水层路径 -->
+                <path id="warmWaterPath" class="warm-layer" d="M0,0 L100,0 L100,20 C70,20 30,80 0,80 Z" />
+            </svg>
+            <div class="thermocline-label" style="left: 10%">Warm Water (暖水)</div>
+            <div class="thermocline-label" style="right: 10%">Cold Upwelling (冷水上涌)</div>
+        </div>
+
+        <!-- 字幕UI -->
+        <div class="ui-layer">
+            <div class="subtitle-box" id="subBox">
+                <span class="sub-cn" id="subCN"></span>
+                <span class="sub-en" id="subEN"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 配置与剧本 ---
+        const els = {
+            titleScreen: document.getElementById('titleScreen'),
+            subCN: document.getElementById('subCN'),
+            subEN: document.getElementById('subEN'),
+            subBox: document.getElementById('subBox'),
+            wind: document.getElementById('wind'),
+            warmWater: document.getElementById('warmWaterPath'),
+            clouds: document.getElementById('clouds'),
+            rain: document.getElementById('rain')
+        };
+
+        // 路径定义 (0,0 is top-left of ocean container)
+        // 正常年份：左边深(80)，右边浅(20)，形成斜坡
+        const pathNormal = "M0,0 L100,0 L100,20 C70,20 30,80 0,80 Z";
+        // 厄尔尼诺：变平，暖水向右延伸覆盖
+        const pathElNino = "M0,0 L100,0 L100,60 C70,60 30,60 0,60 Z";
+
+        // 剧本时间线
+        const script = [
+            {
+                t: 1000,
+                cn: "太平洋上空，一场宏大的气候剧变正在酝酿。",
+                en: "Over the Pacific Ocean, a massive climate shift is brewing.",
+                action: () => {
+                    els.titleScreen.style.opacity = 0; // 淡出标题
+                    createRain(20); // 预生成雨滴
+                }
+            },
+            {
+                t: 5000,
+                cn: "在正常年份，强劲的信风从东向西吹拂。",
+                en: "In normal years, strong trade winds blow from East to West.",
+                action: () => {
+                    els.wind.style.opacity = 1;
+                    els.wind.classList.add('wind-strong');
+                    // 设置正常状态的图像
+                    els.warmWater.setAttribute('d', pathNormal); 
+                    els.clouds.style.opacity = 1;
+                    els.clouds.style.left = "10%"; // 云在西边
+                    els.rain.style.display = "block"; // 西边下雨
+                }
+            },
+            {
+                t: 10000,
+                cn: "风将温暖的海水推向澳大利亚和亚洲一侧。",
+                en: "These winds push warm surface water towards Australia and Asia.",
+                action: () => {
+                    // 视觉维持现状，强调文字
+                }
+            },
+            {
+                t: 15000,
+                cn: "而南美洲沿岸，深层的冷水上涌补充，这里气候干燥。",
+                en: "Along South America, cold deep water wells up. The climate here is dry.",
+                action: () => {
+                    // 强调右侧
+                }
+            },
+            {
+                t: 20000,
+                cn: "但是，当厄尔尼诺现象发生时...",
+                en: "But when El Niño occurs...",
+                action: () => {
+                    // 过渡开始：风减弱
+                    els.wind.classList.remove('wind-strong');
+                    els.wind.classList.add('wind-weak');
+                }
+            },
+            {
+                t: 24000,
+                cn: "信风莫名减弱，甚至反向吹送。",
+                en: "The trade winds weaken mysteriously, or even reverse.",
+                action: () => {
+                    // 风几乎消失
+                    els.wind.style.opacity = 0.3;
+                }
+            },
+            {
+                t: 28000,
+                cn: "失去风的束缚，西部堆积的暖水开始回流向东。",
+                en: "Without the wind, warm water piled in the west sloshes back east.",
+                action: () => {
+                    // 关键动画：暖水层变形
+                    els.warmWater.setAttribute('d', pathElNino);
+                    // 云跟随暖水移动
+                    els.clouds.style.left = "60%"; 
+                }
+            },
+            {
+                t: 34000,
+                cn: "冷水上涌被厚厚的暖水层覆盖，从而停止。",
+                en: "The cold upwelling is capped by the thick layer of warm water.",
+                action: () => {
+                    // 视觉上暖水已经覆盖了右侧
+                }
+            },
+            {
+                t: 39000,
+                cn: "降雨带随之东移，原本干旱的南美洲可能遭遇洪水。",
+                en: "Rain clouds move east. Arid South America may face floods.",
+                action: () => {
+                   // 云已经在中间偏右，雨一直在下
+                }
+            },
+            {
+                t: 44000,
+                cn: "而原本多雨的西部（印尼、澳洲）则面临干旱。",
+                en: "While the usually rainy West (Indonesia, Australia) faces drought.",
+                action: () => {
+                    // 视觉焦点回到左侧，左侧无云无雨
+                }
+            },
+            {
+                t: 49000,
+                cn: "这就是厄尔尼诺：海洋与大气的这一变化，将影响全球。",
+                en: "This is El Niño: A shift in ocean and air that impacts the globe.",
+                action: () => {
+                    els.titleScreen.style.opacity = 1; // 结束画面
+                    els.titleScreen.innerHTML = "<h1 class='main-title' style='font-size:32px'>Fin.</h1>";
+                }
+            }
+        ];
+
+        // --- 辅助函数 ---
+
+        function createRain(count) {
+            const rainContainer = document.getElementById('rain');
+            rainContainer.innerHTML = '';
+            for(let i=0; i<count; i++) {
+                let drop = document.createElement('div');
+                drop.className = 'drop';
+                drop.style.left = Math.random() * 100 + '%';
+                drop.style.animationDuration = (0.5 + Math.random() * 0.5) + 's';
+                drop.style.animationDelay = Math.random() + 's';
+                rainContainer.appendChild(drop);
+            }
+        }
+
+        // --- 播放控制 ---
+        
+        async function playMovie() {
+            // 初始隐藏字幕
+            els.subBox.style.opacity = 0;
+
+            for (let i = 0; i < script.length; i++) {
+                const scene = script[i];
+                
+                // 计算当前步骤需要等待的时间（相对于开始）
+                // 简单的定时器逻辑：
+                const delay = i === 0 ? 100 : (scene.t - script[i-1].t);
+                
+                await new Promise(r => setTimeout(r, delay));
+
+                // 执行动作
+                if (scene.action) scene.action();
+
+                // 更新字幕
+                els.subCN.innerText = scene.cn;
+                els.subEN.innerText = scene.en;
+                els.subBox.style.opacity = 1;
+            }
+        }
+
+        // 页面加载完成后自动开始
+        window.onload = () => {
+            setTimeout(playMovie, 500);
+        };
+
+    </script>
+</body>
+</html>

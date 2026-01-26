@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<meta charset='UTF-8' />
+<meta name='viewport' content='width=device-width, initial-scale=1' />
+<title>水体渲染 - 水体渲染，倒影及水面文字</title>
+<style type='text/css'>
+    html,
+    body {
+        width: 100%;
+        height: 100%;
+        margin: 0px;
+    }
+
+    .container {
+        width: 100%;
+        height: 100%;
+    }
+</style>
+<link rel='stylesheet' href='https://maptalks.com/api/maptalks-gl.css' />
+<script type='text/javascript' src='https://maptalks.com/api/maptalks-gl.js'></script>
+
+<body>
+    <div id="map" class="container"></div>
+
+    <script>
+        // 初始化地图
+        const map = new maptalks.Map("map", {
+            center: [120.105518, 35.875138], // 地图中心坐标 [经度, 纬度]
+            zoom: 16, // 缩放级别
+            bearing: 18, // 方位角（旋转角度）
+            pitch: 30, // 俯仰角（倾斜角度）
+            maxAvailableZoom: 16, // 地图最大可用缩放级别
+            baseLayer: new maptalks.TileLayer("base", { // 底图层配置
+                urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', // 瓦片服务地址
+                subdomains: ["a", "b", "c", "d"], // 子域名，用于负载均衡
+            }),
+            lights: {
+                // 灯光配置（当前为空，使用默认灯光）
+            }
+        });
+
+        // 创建矢量瓦片图层，用于加载水面数据
+        const vt = new maptalks.VectorTileLayer("vt", {
+            urlTemplate: "http://localhost:5000/tiles/sea.mbtiles/{z}/{x}/{y}.mvt", // 矢量瓦片服务地址
+            maxAvailableZoom: 14, // 最大可用缩放级别，超过此级别将使用最近级别的瓦片进行放大显示
+            opacity: 0.5 // 图层整体透明度（50%不透明）
+        });
+
+        // 定义样式配置
+        const style = {
+            style: [{
+                // 水面样式
+                filter: ["all", 
+                    ["==", "$type", "Polygon"] // 过滤多边形类型
+                ],
+                renderPlugin: {
+                    dataConfig: {
+                        type: "fill" // 填充类型
+                    },
+                    sceneConfig: {}, // 场景配置（空）
+                    type: "water" // 渲染插件类型：水面
+                },
+                symbol: {
+                    ssr: true, // 开启屏幕空间反射（水面倒影效果）
+                    texWaveNormal: "/texture/texWaveNormal.png", // 波浪法线纹理（用于模拟波浪起伏）
+                    texWavePerturbation: "/texture/texWavePerturbation.png", // 波浪扰动纹理（用于增加波浪细节）
+                    waterBaseColor: [0.611764705882353, 0.7529411764705882, 0.9764705882352941, 1], // 水面基础颜色 [R, G, B, A]
+                    contrast: 1.8, // 对比度（增强明暗对比，让波浪更明显）
+                    hsv: [0, -0.596, 0], // HSV颜色调整 [色相, 饱和度, 明度]
+                    uvScale: 2, // UV缩放（控制波浪大小，值越小波浪越密集）
+                    animation: true, // 开启动画（关键：水面波动效果）
+                    waterSpeed: 2.5, // 水流速度（控制波浪流动速度）
+                    waterDirection: 0 // 水流方向（0表示水平流动，单位为弧度）
+                }
+            },
+            // 水面文字
+            {
+                filter: ["all",
+                    ["==", "$type", "Polygon"] // 过滤多边形类型
+                ],
+                renderPlugin: {
+                    dataConfig: {
+                        type: "point" // 点类型（用于文字标注）
+                    },
+                    sceneConfig: {
+                        collision: true, // 开启碰撞检测（避免文字重叠）
+                        fading: false, // 关闭淡入淡出效果
+                        depthFunc: "<=" // 深度测试函数
+                    },
+                    type: "text" // 渲染插件类型：文字
+                },
+                symbol: {
+                    textFaceName: "Microsoft YaHei,sans-serif", // 字体名称（微软雅黑）
+                    textFill: [1, 1, 1, 1], // 文字颜色 [R, G, B, A]（白色）
+                    textName: "ocean", // 文字内容
+                    textPitchAlignment: "map", // 文字俯仰对齐方式（map：跟随地图倾斜）
+                    textRotationAlignment: "viewport", // 文字旋转对齐方式（viewport：跟随视口旋转）
+                    textSize: 40 // 文字大小
+                }
+            }
+            ]
+        };
+        // 应用样式到矢量瓦片图层
+        vt.setStyle(style);
+    
+        // 创建组图层，用于统一管理多个图层和场景效果
+        const groupLayer = new maptalks.GroupGLLayer("group", [vt], {
+            sceneConfig: {
+                // 环境配置
+                environment: {
+                    enable: true, // 启用环境光照
+                    mode: 0, // 环境模式（0：自定义环境）
+                    level: 2, // 环境级别
+                    brightness: 0 // 环境亮度
+                },
+                // 阴影配置
+                shadow: {
+                    type: "esm", // 阴影类型（ESM：指数阴影贴图）
+                    enable: true, // 启用阴影
+                    quality: "high", // 阴影质量（high：高质量）
+                    opacity: 0.5, // 阴影不透明度（50%）
+                    color: [0, 0, 0], // 阴影颜色 [R, G, B]（黑色）
+                    blurOffset: 1 // 模糊偏移（控制阴影边缘模糊程度）
+                },
+                // 后处理配置
+                postProcess: {
+                    enable: true, // 启用后处理
+                    antialias: {
+                        enable: true // 启用抗锯齿（消除锯齿边缘）
+                    },
+                    ssr: {
+                        enable: true // 启用屏幕空间反射（水面倒影效果）
+                    },
+                    sharpen: {
+                        enable: true, // 启用锐化
+                        factor: 0.3 // 锐化强度
+                    }
+                },
+                // 地面配置
+                ground: {
+                    enable: false, // 禁用地面
+                    renderPlugin: {
+                        type: "lit" // 渲染插件类型：光照
+                    },
+                    symbol: {
+                        polygonFill: [0.54, 0.54, 0.54, 1], // 多边形填充颜色 [R, G, B, A]
+                        material: {
+                            baseColorFactor: [0.13333333, 0.13333333, 0.13333333, 1] // 基础颜色因子 [R, G, B, A]
+                        }
+                    }
+                }
+            }
+        });
+        // 将组图层添加到地图
+        groupLayer.addTo(map);
+    </script>
+</body>
+
+</html>

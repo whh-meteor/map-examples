@@ -13,7 +13,7 @@ def get_tile(mbtiles_file, z, x, y):
     
     try:
         # 连接到 MBTiles 数据库
-        conn = sqlite3.connect(f'F:/Desktop/LTGK-PROJECT/产品-气象平台/03-gfs数据/gfs/{mbtiles_file}')
+        conn = sqlite3.connect(f'F:/Desktop/MyGithub/priviate/Tools-Map/public/data/{mbtiles_file}')
         cursor = conn.cursor()
         
         # 查询瓦片数据
