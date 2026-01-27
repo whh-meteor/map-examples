@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>arcgis地形加载</title>
+    <title>自定义地形加载-QGIS灰度图</title>
     <style>
         html, body {
             margin: 0;
@@ -48,12 +48,15 @@
             [1450, "#085799"],
             [1600, "#084586"],
         ];
-
+        let min = -0,
+                max = 1161;
         const terrain = {
             type: "mapbox",
             maxAvailableZoom: 14,
             requireSkuToken: false,
-            urlTemplate: "https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer/tile/{z}/{y}/{x}",
+            // urlTemplate: "https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer/tile/{z}/{y}/{x}",
+            // urlTemplate:"http://127.0.0.1:5501/{z}/{x}/{y}.png",
+            urlTemplate:"https://inner.qdlimap.cn:7001/GisServer/NanHuangHai/qingdaoterrain/{z}/{x}/{y}.png",
             subdomains: ["a", "b", "c", "d"],
            // colors: colors,
             exaggeration: 3,
@@ -76,13 +79,15 @@
                 tileActor
                     .encodeTerrainTile({
                         url: absoluteUrl,
-                        terrainType: "arcgis",
-                        indexedDBCache: true,
-                        fetchOptions: {
-                            headers: {
-                                'Accept': 'image/png, image/jpeg, image/webp'
-                            }
-                        }
+                        terrainType:  "qgis-gray",
+                        minHeight: min,
+                        maxHeight: max,
+                        // indexedDBCache: true,
+                        // fetchOptions: {
+                        //     headers: {
+                        //         'Accept': 'image/png, image/jpeg, image/webp'
+                        //     }
+                        // }
                     })
                     .then((imagebitmap) => {
                         console.log("Terrain tile encoded successfully");

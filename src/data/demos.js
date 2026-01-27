@@ -48,10 +48,10 @@ export const demoCategories = [
     icon: "📍",
     demos: [
       {
-        id: "marker-demo",
-        title: "标记点示例",
-        description: "在地图上添加和管理标记点",
-        icon: "📍",
+        id: "heatmap",
+        title: "热力图",
+        description: "在地图上添加热力图",
+         image: "/img/heatmap.png",
       },
     ],
   },
@@ -90,6 +90,12 @@ export const demoCategories = [
           "（需要启动Geoserver）展示如何使用墨卡托和兰伯特投影之间的切换",
         icon: "🗺",
         image: "/img/Proj4-mkt.png",
+      },    {
+        id: "terrain-QGIS",
+        title: "自定义地形加载-QGIS灰度图",
+        description: "添加自定义地形",
+        icon: "🗺",
+        image: "/img/arcgis-terrain.png",
       },
       {
         id: "terrain-arcgis",
@@ -136,8 +142,13 @@ export const demoCategories = [
       },
       {
         id: "3d-water",
-        title: "水体效果",
-        description: "maptalks-gl实现水面",
+        title: "maptalks水体效果",
+        description: "maptalks-gl实现水面,需要切片数据",
+        image: "/img/3d-water.png",
+      }, {
+        id: "threjs_water",
+        title: "threejs水体效果",
+        description: "threejs实现水面",
         image: "/img/3d-water.png",
       },
       {
