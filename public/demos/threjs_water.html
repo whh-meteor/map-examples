@@ -11,25 +11,14 @@
 <body>
     <div id="map" style="width: 100vw; height: 100vh;"></div>
     <script src="../demos/threejs_ocean_ship/js/three.js"></script>
-
     <script src="../demos/threejs_ocean_ship/js/water.js"></script>
     <script src="https://unpkg.com/maptalks/dist/maptalks.min.js"></script>
     <script src="https://unpkg.com/maptalks.three/dist/maptalks.three.min.js"></script>
-    <script>var stats;
+    <script>
+
         var map, threeLayer;
         var scene, camera, renderer;
         var water;
-        // 鼠标点击定位
-        var raycaster = new THREE.Raycaster();
-        var mouse = new THREE.Vector2();
-        // 鼠标移动定位
-        var raycaster2 = new THREE.Raycaster();
-        var mouse2 = new THREE.Vector2();
-        var objectArr = []; // 存放场景中所有mesh
-        // 提示框
-        var infoModal, labelRenderer;
-
-        var engineerShip, thingsShip, helicopter;
 
 
         // ===========  初始化地图  ========================
@@ -77,8 +66,7 @@
             threeLayer.addTo(map);
         }
 
-   
-
+    
         // ================== 灯光 =============================
         function initLights() {
             // 增强环境光，确保所有面都能被照亮
@@ -313,34 +301,6 @@
                 water.material.uniforms["time"].value += 1.0 / 60.0;
             }
 
-            if (engineerShip) {
-                // 由于场景旋转，现在y轴是地图平面的前后方向
-                engineerShip.position.y += 0.1;
-                if (
-                    engineerShip.position.y >=
-                    threeLayer.coordinateToVector3([120, 35.6], 0).y + 50
-                ) {
-                    engineerShip.position.x += 0.01;
-                    engineerShip.rotation.y += 0.001;
-                }
-            }
-
-            if (thingsShip) {
-                // 由于场景旋转，现在y轴是地图平面的前后方向
-                thingsShip.position.y += 0.1;
-                if (
-                    thingsShip.position.y >=
-                    threeLayer.coordinateToVector3([120, 35.6], 0).y + 60
-                ) {
-                    thingsShip.position.x += 0.01;
-                    thingsShip.rotation.y += 0.001;
-                }
-            }
-
-            if (labelRenderer && scene && camera) {
-                labelRenderer.render(scene, camera);
-            }
-
             // 强制 ThreeLayer 重新渲染，确保动画能够持续显示
             if (threeLayer) {
                 threeLayer.redraw();
@@ -352,7 +312,7 @@
 
 
         function initAll() {
-         
+
             initMap();
             initThreeLayer();
         
@@ -361,6 +321,10 @@
         window.onload = function () {
             initAll();
         };
+</script>
+</body>
+
+</html>
 </script>
 </body>
 

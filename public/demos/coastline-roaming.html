@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>海岸线漫游</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- <script type="text/javascript" src="https://unpkg.com/maptalks/dist/maptalks.min.js"></script> -->
+     <script src="https://cdn.jsdelivr.net/npm/maptalks-gl@0.123.0/dist/maptalks-gl.min.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <!-- <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@maptalks/gl@0.123.0/dist/maptalksgl.min.js"></script> -->
+    <!-- <script type="text/javascript" src="https://unpkg.com/three@0.147.0/build/three.min.js"></script> -->
+    <!-- <script type="text/javascript" src="https://unpkg.com/maptalks.three@latest/dist/maptalks.three.min.js"></script> -->
+
+    <style>
+        html, body {
+            margin: 0px;
+            height: 100%;
+            width: 100%;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+        }
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            min-width: 200px;
+        }
+        .control-panel h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        .control-button {
+            display: block;
+            width: 100%;
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        .control-button:hover {
+            background: #45a049;
+        }
+        .control-button.stop {
+            background: #f44336;
+        }
+        .control-button.stop:hover {
+            background: #d32f2f;
+        }
+        .control-button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 8px;
+            background: #f1f1f1;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .progress {
+            margin-top: 10px;
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #4CAF50;
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="control-panel">
+        <h3>海岸线漫游控制</h3>
+        <button id="startBtn" class="control-button">开始漫游</button>
+        <button id="stopBtn" class="control-button stop" disabled>停止漫游</button>
+        <div class="status" id="status">准备就绪</div>
+        <div class="progress">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import  CoastlineRoaming from '../demos/coastline-roaming/coastline-roaming.js';
+        
+        // 初始化地图
+        const map = new maptalks.Map("map", {
+            center: [119.8, 35.7], // 设置地图中心点
+            zoom: 14, // 设置初始缩放级别
+            pitch: 45, // 设置初始倾斜角度
+            bearing: 0, // 设置初始方位角
+            baseLayer: new maptalks.TileLayer("base", {
+                urlTemplate: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+                subdomains: ["a", "b", "c"],
+                attribution: ''
+            })
+        });
+
+        // 创建海岸线漫游实例
+        let coastlineRoaming = null;
+        
+        // 等待地图加载完成
+        // map.on('click', function() {
+            // 初始化海岸线漫游
+            coastlineRoaming = new CoastlineRoaming(map, {
+                duration: 60000, // 漫游时长60秒
+                zoom: 13, // 漫游时的缩放级别
+                pitch: 60, // 漫游时的倾斜角度
+                autoStart: false, // 不自动开始
+                onComplete: function() {
+                    updateStatus("漫游完成");
+                    updateProgress(100);
+                    setButtonState(true, false);
+                },
+                onProgress: function(progress) {
+                    updateStatus(`漫游中... ${Math.round(progress)}%`);
+                    updateProgress(progress);
+                }
+            });
+            console.log(coastlineRoaming)
+            // updateStatus("准备就绪");
+        // });
+
+        // 获取DOM元素
+        const startBtn = document.getElementById("startBtn");
+        const stopBtn = document.getElementById("stopBtn");
+        const statusDiv = document.getElementById("status");
+        const progressBar = document.getElementById("progressBar");
+
+        // 开始漫游
+        startBtn.addEventListener("click", function() {
+                console.log(coastlineRoaming)
+            if (coastlineRoaming) {
+            
+                coastlineRoaming.start();
+                updateStatus("漫游开始");
+                updateProgress(0);
+                setButtonState(false, true);
+            }
+        });
+
+        // 停止漫游
+        stopBtn.addEventListener("click", function() {
+            if (coastlineRoaming) {
+                coastlineRoaming.stop();
+                updateStatus("漫游已停止");
+                setButtonState(true, false);
+            }
+        });
+
+        // 更新状态文本
+        function updateStatus(text) {
+            statusDiv.textContent = text;
+        }
+
+        // 更新进度条
+        function updateProgress(percent) {
+            progressBar.style.width = percent + "%";
+        }
+
+        // 设置按钮状态
+        function setButtonState(startEnabled, stopEnabled) {
+            startBtn.disabled = !startEnabled;
+            stopBtn.disabled = !stopEnabled;
+        }
+    </script>
+</body>
+</html>

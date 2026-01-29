@@ -60,7 +60,12 @@ export const demoCategories = [
     name: "控件与交互",
     description: "地图控件和用户交互功能",
     icon: "🎛️",
-    demos: [],
+    demos: [ {
+        id: "coastline-roaming",
+        title: "海岸漫游",
+        description: "在地图上漫游海岸",
+         image: "/img/coastline-roaming.png",
+      },],
   },
   {
     id: "layers",
@@ -74,6 +79,12 @@ export const demoCategories = [
         description: "2.5D 行政区效果",
         icon: "🏢",
         image: "/img/2.5d-area.png",
+      }, {
+        id: "2.5d-area-texture",
+        title: "行政区渐变效果",
+        description: "2.5D 行政区效果",
+        icon: "🏢",
+        image: "/img/2.5d-area-texture.png",
       },
     ],
   },
@@ -149,7 +160,7 @@ export const demoCategories = [
         id: "threjs_water",
         title: "threejs水体效果",
         description: "threejs实现水面",
-        image: "/img/3d-water.png",
+        image: "/img/threjs_water.png",
       },
       {
         id: "threejs_ocean_ship",

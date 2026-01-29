@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2.5D 区域可视化 - Maptalks Three.js</title>
+  <!-- 引入dat.gui样式，用于可能的UI控制面板 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dat.gui@0.7.6/build/dat.gui.css">
+  <!-- 引入maptalks地图库样式 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maptalks/dist/maptalks.css">
+  <style>
+    /* 基础样式设置，使地图占满整个屏幕 */
+    html, body {
+      margin: 0;
+      height: 100%;
+      width: 100%
+    }
+    .container {
+      width: 100%;
+      height: 100%
+    }
+  </style>
+</head>
+<body>
+
+<!-- 地图容器 -->
+<div id="map" class="container"></div>
+
+<!-- 引入maptalks地图库 -->
+<script src="https://cdn.jsdelivr.net/npm/maptalks/dist/maptalks.js"></script>
+<!-- 引入Three.js 3D库 -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.110.0/build/three.min.js"></script>
+<!-- 引入maptalks.three插件，用于在maptalks中集成Three.js -->
+<script src="https://cdn.jsdelivr.net/npm/maptalks.three@0.27.0/dist/maptalks.three.js"></script>
+
+<script>
+  // 配置参数对象
+  const CONFIG = {
+    // 地图中心点坐标 [经度, 纬度]
+    center: [119.8, 35.7],
+    // 地图缩放级别
+    zoom: 8.8,
+    // 地图方位角（旋转角度）
+    bearing: 10,
+    // 地图俯仰角（倾斜角度）
+    pitch: 10,
+    // 挤出高度
+    height: 5000,
+    // 颜色配置
+    colors: {
+      line: '#fff',         // 线条颜色
+      plane1: '#29B5E0',    // 平面颜色1（渐变起始色）
+      plane2: '#207FB5',    // 平面颜色2（渐变结束色）
+      outline: '#2FEFFA',   // 轮廓线颜色
+      polygonFill: 'rgb(32, 88, 146)'  // 多边形填充色
+    },
+    // 透明度配置
+    opacity: {
+      line: 0.6,     // 线条透明度
+      plane: 1,      // 平面透明度
+      polygon: 0.7   // 多边形透明度
+    }
+  };
+
+  // 纹理加载器和纹理对象
+  let textureLoader;
+  let texture;
+  
+  // 初始化地图
+  initMap();
+
+  /**
+   * 初始化地图函数
+   */
+  async function initMap() {
+    try {
+      // 加载轮廓数据
+      const outline = await loadOutlineData();
+      // 加载纹理图片
+      loadTexture();
+      // 创建地图实例
+      const map = createMap();
+      // 创建Three.js图层
+      const threeLayer = createThreeLayer();
+      // 创建基础矢量图层
+      const baseLayer = createBaseLayer(map);
+      
+      // 配置Three.js图层
+      setupThreeLayer(threeLayer, outline, baseLayer, map);
+      // 将Three.js图层添加到地图
+      threeLayer.addTo(map);
+    } catch (error) {
+      // 捕获并打印初始化失败的错误
+      console.error('初始化地图失败:', error);
+    }
+  }
+
+  /**
+   * 加载轮廓数据
+   * @returns {Promise<Object>} 轮廓GeoJSON数据
+   */
+  async function loadOutlineData() {
+    // 从本地文件加载轮廓数据
+    const response = await fetch("../demos/2.5d-area/outline.json");
+    // 解析JSON数据并返回
+    return await response.json();
+  }
+
+  /**
+   * 加载纹理图片
+   */
+  function loadTexture() {
+    textureLoader = new THREE.TextureLoader();
+    texture = textureLoader.load("/three/texture/huangdao2.png");
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+  }
+
+  /**
+   * 创建地图实例
+   * @returns {maptalks.Map} 地图实例
+   */
+  function createMap() {
+    return new maptalks.Map('map', {
+      center: CONFIG.center,     // 地图中心点
+      zoom: CONFIG.zoom,         // 缩放级别
+      bearing: CONFIG.bearing,   // 方位角
+      pitch: CONFIG.pitch,       // 俯仰角
+      attribution: "",           // 版权信息（空）
+      // 底图图层
+      baseLayer: new maptalks.TileLayer('base', {
+        // 瓦片地图URL模板
+        urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+        // 子域名列表，用于负载均衡
+        subdomains: ['a', 'b', 'c', 'd'],
+      })
+    });
+  }
+
+  /**
+   * 创建基础矢量图层
+   * @param {maptalks.Map} map 地图实例
+   * @returns {maptalks.VectorLayer} 矢量图层实例
+   */
+  function createBaseLayer(map) {
+    // 创建并返回一个名为"基础"的矢量图层，并添加到地图
+    return new maptalks.VectorLayer("基础").addTo(map);
+  }
+
+  /**
+   * 创建Three.js图层
+   * @returns {maptalks.ThreeLayer} Three.js图层实例
+   */
+  function createThreeLayer() {
+    return new maptalks.ThreeLayer('tplowarn', {
+      identifyCountOnEvent: 1,  // 事件识别的最大对象数
+      maxZoom: 13,              // 最大缩放级别
+      animation: true           // 启用动画
+    });
+  }
+
+  /**
+   * 创建线条材质
+   * @returns {THREE.MeshLambertMaterial} 线条材质
+   */
+  function createLineMaterial() {
+    return new THREE.MeshLambertMaterial({
+      color: CONFIG.colors.line,      // 线条颜色
+      transparent: true,              // 启用透明
+      opacity: CONFIG.opacity.line    // 透明度
+    });
+  }
+
+  /**
+   * 创建平面材质（使用着色器实现渐变效果）
+   * @returns {THREE.ShaderMaterial} 平面材质
+   */
+  function createPlaneMaterial() {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        color2: { value: new THREE.Color("#0c42f0") },
+        color1: { value: new THREE.Color("#000") },
+        opacity: { value: 0.8 },
+        gradientTexture: { value: texture }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+      fragmentShader: `
+        uniform vec3 color1;
+        uniform vec3 color2;
+        uniform float opacity;
+        uniform sampler2D gradientTexture;
+        varying vec2 vUv;
+        
+        void main() {
+            // 计算从中心到边缘的距离
+            vec2 center = vec2(0.5, 0.5);
+            float dist = length(vUv - center);
+            // 归一化距离（0到1）
+            float normalizedDistance = dist * sqrt(2.0);
+            
+            // 从纹理中采样灰度值，用于影响渐变分布
+            vec4 textureSample = texture2D(gradientTexture, vUv);
+            // 计算纹理的灰度值（亮度）
+            float textureGray = dot(textureSample.rgb, vec3(0.299, 0.587, 0.114));
+            
+            // 结合距离和纹理信息创建渐变因子
+            float gradientFactor = mix(normalizedDistance, textureGray, 0.3);
+            // 使用幂函数增强边缘效果
+            gradientFactor = pow(gradientFactor, 0.9);
+            // 确保边缘完全显示color2
+            gradientFactor = min(gradientFactor, 1.0);
+            
+            // 只使用color1和color2进行颜色混合
+            vec3 color = mix(color1, color2, gradientFactor);
+            
+            // 实现透明度渐变：中心更透明，边缘更不透明
+            float alphaFactor = gradientFactor;
+            // 增强边缘不透明度
+            alphaFactor = pow(alphaFactor, 0.5);
+            // 结合基础透明度
+            float finalAlpha = alphaFactor * opacity;
+            
+            gl_FragColor = vec4(color, finalAlpha);
+        }
+    `,
+      transparent: true,
+      side: THREE.DoubleSide
+    });
+  }
+
+  /**
+   * 配置Three.js图层
+   * @param {maptalks.ThreeLayer} threeLayer Three.js图层实例
+   * @param {Object} outline 轮廓GeoJSON数据
+   * @param {maptalks.VectorLayer} baseLayer 基础矢量图层
+   * @param {maptalks.Map} map 地图实例
+   */
+  function setupThreeLayer(threeLayer, outline, baseLayer, map) {
+    // 设置Three.js图层的prepareToDraw方法，在图层准备绘制时执行
+    threeLayer.prepareToDraw = function (gl, scene, camera) {
+      // 设置灯光
+      setupLights(scene);
+      // 添加区域平面
+      addAreaPlane(threeLayer, outline);
+      // 添加多边形
+      addPolygons(threeLayer, outline);
+      // 添加轮廓
+      addOutline(baseLayer, outline);
+    };
+  }
+
+  /**
+   * 设置场景灯光
+   * @param {THREE.Scene} scene Three.js场景实例
+   */
+  function setupLights(scene) {
+    // 创建方向光
+    const directionalLight = new THREE.DirectionalLight(0xffffff);
+    // 设置方向光位置并归一化
+    directionalLight.position.set(0, -10, 10).normalize();
+    // 将方向光添加到场景
+    scene.add(directionalLight);
+    // 添加环境光，提供基础照明
+    scene.add(new THREE.AmbientLight('#fff', 0.3));
+  }
+
+  /**
+   * 添加区域平面到Three.js图层
+   * @param {maptalks.ThreeLayer} threeLayer Three.js图层实例
+   * @param {Object} outline 轮廓GeoJSON数据
+   */
+  function addAreaPlane(threeLayer, outline) {
+    // 创建平面材质
+    const planeMaterial = createPlaneMaterial();
+    // 将每个要素转换为挤出多边形
+    const extrudePolygons = outline.features.map((feature) => {
+      return threeLayer.toExtrudePolygon(
+        feature,           // 地理要素
+        { height: 1 },     // 挤出高度（很小，几乎是平面）
+        planeMaterial      // 平面材质
+      );
+    });
+    
+    // 重置顶部UV坐标，用于正确显示渐变
+    resetTopUV(extrudePolygons);
+    // 将挤出多边形添加到Three.js图层
+    threeLayer.addMesh(extrudePolygons);
+  }
+
+  /**
+   * 重置挤出多边形的顶部UV坐标
+   * @param {Array} extrudePolygons 挤出多边形数组
+   */
+  function resetTopUV(extrudePolygons) {
+    // 计算所有挤出多边形的边界
+    const bounds = calculateBounds(extrudePolygons);
+    // 计算边界的宽度和高度
+    const { dx, dy } = { dx: bounds.maxx - bounds.minx, dy: bounds.maxy - bounds.miny };
+    
+    // 遍历每个挤出多边形
+    extrudePolygons.forEach((extrudePolygon) => {
+      // 更新多边形的UV坐标
+      updatePolygonUV(extrudePolygon, bounds, dx, dy);
+    });
+  }
+
+  /**
+   * 计算挤出多边形的边界
+   * @param {Array} extrudePolygons 挤出多边形数组
+   * @returns {Object} 边界对象，包含minx, miny, maxx, maxy, maxZ
+   */
+  function calculateBounds(extrudePolygons) {
+    // 初始化边界值
+    let minx = Infinity, miny = Infinity;
+    let maxx = -Infinity, maxy = -Infinity;
+    let maxZ = -Infinity;
+
+    // 遍历每个挤出多边形
+    extrudePolygons.forEach((extrudePolygon) => {
+      // 获取Three.js对象的几何体
+      const geometry = extrudePolygon.getObject3d().geometry;
+      // 获取对象的位置
+      const center = extrudePolygon.getObject3d().position;
+      // 获取顶点位置数组
+      const position = geometry.attributes.position.array;
+      
+      // 计算边界
+      for (let i = 0, len = position.length; i < len; i += 3) {
+        const x = position[i] + center.x;
+        const y = position[i + 1] + center.y;
+        const z = position[i + 2];
+        
+        minx = Math.min(minx, x);
+        miny = Math.min(miny, y);
+        maxx = Math.max(maxx, x);
+        maxy = Math.max(maxy, y);
+        maxZ = Math.max(maxZ, z);
+      }
+    });
+    
+    return { minx, miny, maxx, maxy, maxZ };
+  }
+
+  /**
+   * 更新多边形的UV坐标
+   * @param {Object} extrudePolygon 挤出多边形对象
+   * @param {Object} bounds 边界对象
+   * @param {number} dx 边界宽度
+   * @param {number} dy 边界高度
+   */
+  function updatePolygonUV(extrudePolygon, bounds, dx, dy) {
+    const geometry = extrudePolygon.getObject3d().geometry;
+    const position = geometry.attributes.position.array;
+    const center = extrudePolygon.getObject3d().position;
+    const px = center.x;
+    const py = center.y;
+    const uv = geometry.attributes.uv.array;
+    
+    let idx = 0;
+    for (let i = 0, len = position.length; i < len; i += 3) {
+      const x = position[i] + px;
+      const y = position[i + 1] + py;
+      const z = position[i + 2];
+      
+      // 只更新顶部面的UV坐标
+      if (z === bounds.maxZ) {
+        const u = (x - bounds.minx) / dx;
+        const v = (y - bounds.miny) / dy;
+        const index = idx * 2;
+        uv[index] = u;
+        uv[index + 1] = v;
+      }
+      idx++;
+    }
+  }
+
+  /**
+   * 添加多边形到Three.js图层
+   * @param {maptalks.ThreeLayer} threeLayer Three.js图层实例
+   * @param {Object} outline 轮廓GeoJSON数据
+   */
+  function addPolygons(threeLayer, outline) {
+    // 创建线条材质
+    const lineMaterial = createLineMaterial();
+    // 将多边形转换为线条
+    const lines = maptalks.GeoJSON.toGeometry(flatPolygon2Lines(outline));
+    
+    // 遍历每条线
+    lines.forEach((line) => {
+      // 创建挤出线条
+      const extrudeLine = threeLayer.toExtrudeLine(
+        line,
+        { 
+          height: CONFIG.height,         // 挤出高度
+          altitude: -CONFIG.height,      // 起始高度（负值表示从地下开始）
+          topColor: CONFIG.colors.line   // 顶部颜色
+        },
+        lineMaterial  // 线条材质
+      );
+      // 将挤出线条添加到Three.js图层
+      threeLayer.addMesh(extrudeLine);
+    });
+  }
+
+  /**
+   * 添加轮廓到基础矢量图层
+   * @param {maptalks.VectorLayer} baseLayer 基础矢量图层
+   * @param {Object} outline 轮廓GeoJSON数据
+   */
+  function addOutline(baseLayer, outline) {
+    // 将GeoJSON数据转换为maptalks几何对象
+    maptalks.GeoJSON.toGeometry(outline, geo => {
+      // 设置几何对象的样式
+      geo.setSymbol({
+        lineColor: CONFIG.colors.outline,    // 线条颜色
+        lineWidth: 4,                        // 线条宽度
+        lineDasharray: null,                 // 线条样式（实线）
+        lineOpacity: 1,                      // 线条透明度
+        polygonFill: CONFIG.colors.polygonFill,  // 多边形填充色
+        polygonOpacity: CONFIG.opacity.polygon   // 多边形透明度
+      });
+      // 将几何对象添加到基础图层
+      baseLayer.addGeometry(geo);
+    });
+  }
+
+  /**
+   * 将多边形转换为线条
+   * @param {Object} geojson GeoJSON数据
+   * @returns {Object} 包含线条要素的FeatureCollection
+   */
+  function flatPolygon2Lines(geojson) {
+    const results = {
+      type: "FeatureCollection",
+      features: [],
+    };
+    
+    // 遍历每个要素
+    geojson.features.forEach((f) => {
+      const { geometry, properties } = f;
+      const { coordinates, type } = geometry;
+
+      // 处理多边形类型
+      if (type === "Polygon") {
+        // 遍历每个环
+        coordinates.forEach((ring) => {
+          // 添加线条要素
+          results.features.push({
+            type: "Feature",
+            geometry: { type: "LineString", coordinates: ring },
+            properties,
+          });
+        });
+      } 
+      // 处理多多边形类型
+      else if (type === "MultiPolygon") {
+        // 遍历每个多边形
+        coordinates.forEach((polygon) => {
+          // 遍历每个环
+          polygon.forEach((ring) => {
+            // 添加线条要素
+            results.features.push({
+              type: "Feature",
+              geometry: { type: "LineString", coordinates: ring },
+              properties,
+            });
+          });
+        });
+      }
+    });
+    
+    return results;
+  }
+</script>
+</body>
+</html>
+    });
+    
+    // 重置顶部UV坐标，用于正确显示渐变
+    resetTopUV(extrudePolygons);
+    // 将挤出多边形添加到Three.js图层
+    threeLayer.addMesh(extrudePolygons);
+  }
+
+  /**
+   * 将多边形转换为线条
+   * @param {Object} geojson GeoJSON数据
+   * @returns {Object} 包含线条要素的FeatureCollection
+   */
+  function flatPolygon2Lines(geojson) {
+    const results = {
+      type: "FeatureCollection",
+      features: [],
+    };
+    
+    // 遍历每个要素
+    geojson.features.forEach((f) => {
+      const { geometry, properties } = f;
+      const { coordinates, type } = geometry;
+
+      // 处理多边形类型
+      if (type === "Polygon") {
+        // 遍历每个环
+        coordinates.forEach((ring) => {
+          // 添加线条要素
+          results.features.push({
+            type: "Feature",
+            geometry: { type: "LineString", coordinates: ring },
+            properties,
+          });
+        });
+      } 
+      // 处理多多边形类型
+      else if (type === "MultiPolygon") {
+        // 遍历每个多边形
+        coordinates.forEach((polygon) => {
+          // 遍历每个环
+          polygon.forEach((ring) => {
+            // 添加线条要素
+            results.features.push({
+              type: "Feature",
+              geometry: { type: "LineString", coordinates: ring },
+              properties,
+            });
+          });
+        });
+      }
+    });
+    
+    return results;
+  }
+
+  /**
+   * 重置挤出多边形的顶部UV坐标
+   * @param {Array} extrudePolygons 挤出多边形数组
+   */
+  function resetTopUV(extrudePolygons) {
+    // 计算所有挤出多边形的边界
+    const bounds = calculateBounds(extrudePolygons);
+    // 计算边界的宽度和高度
+    const { dx, dy } = { dx: bounds.maxx - bounds.minx, dy: bounds.maxy - bounds.miny };
+    
+    // 遍历每个挤出多边形
+    extrudePolygons.forEach((extrudePolygon) => {
+      // 更新多边形的UV坐标
+      updatePolygonUV(extrudePolygon, bounds, dx, dy);
+    });
+  }
+
+  /**
+   * 计算挤出多边形的边界
+   * @param {Array} extrudePolygons 挤出多边形数组
+   * @returns {Object} 边界对象，包含minx, miny, maxx, maxy, maxZ
+   */
+  function calculateBounds(extrudePolygons) {
+    // 初始化边界值
+    let minx = Infinity, miny = Infinity;
+    let maxx = -Infinity, maxy = -Infinity;
+    let maxZ = -Infinity;
+
+    // 遍历每个挤出多边形
+    extrudePolygons.forEach((extrudePolygon) => {
+      // 获取Three.js对象的几何体
+      const geometry = extrudePolygon.getObject3d().geometry;
+      // 获取对象的位置
+      const center = extrudePolygon.getObject3d().position;
+      // 获取顶点位置数组
+      const position = geometry.attributes.position.array;
+      
+      // 遍历每个顶点
+      for (let i = 0, len = position.length; i < len; i += 3) {
+        // 计算顶点的实际位置（考虑对象中心）
+        const x = position[i] + center.x;
+        const y = position[i + 1] + center.y;
+        const z = position[i + 2];
+        
+        // 更新边界值
+        minx = Math.min(minx, x);
+        miny = Math.min(miny, y);
+        maxx = Math.max(maxx, x);
+        maxy = Math.max(maxy, y);
+        maxZ = Math.max(maxZ, z);
+      }
+    });
+
+    // 返回边界对象
+    return { minx, miny, maxx, maxy, maxZ };
+  }
+
+  /**
+   * 更新多边形的UV坐标
+   * @param {Object} extrudePolygon 挤出多边形
+   * @param {Object} bounds 边界对象
+   * @param {number} dx 边界宽度
+   * @param {number} dy 边界高度
+   */
+  function updatePolygonUV(extrudePolygon, bounds, dx, dy) {
+    // 获取Three.js对象的几何体
+    const geometry = extrudePolygon.getObject3d().geometry;
+    // 获取顶点位置数组
+    const position = geometry.attributes.position.array;
+    // 获取对象的位置
+    const center = extrudePolygon.getObject3d().position;
+    // 获取UV坐标数组
+    const uv = geometry.attributes.uv.array;
+    let idx = 0;
+
+    // 遍历每个顶点
+    for (let i = 0, len = position.length; i < len; i += 3) {
+      // 计算顶点的实际位置（考虑对象中心）
+      const x = position[i] + center.x;
+      const y = position[i + 1] + center.y;
+      const z = position[i + 2];
+
+      // 只更新顶部的UV坐标
+      if (z === bounds.maxZ) {
+        const index = idx * 2;
+        // 计算UV坐标（归一化到0-1范围）
+        uv[index] = (x - bounds.minx) / dx;     // U坐标
+        uv[index + 1] = (y - bounds.miny) / dy; // V坐标
+      }
+      idx++;
+    }
+  }
+</script>
+</body>
+</html>
